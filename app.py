@@ -44,96 +44,40 @@ PEOPLE = [
 # ============================================================
 
 SEED = [
-    (
-        "Relatório de resultados de amostras de adjuvantes (Lotes)",
-        "Cerrada",
-        "—",
-    ),
-    (
-        "Relatório de teste de emulsão (Projeto ADJ G)",
-        "Cerrada",
-        "—",
-    ),
+    ("Relatório de resultados de amostras de adjuvantes (Lotes)", "Cerrada", "—"),
+    ("Relatório de teste de emulsão (Projeto ADJ G)", "Cerrada", "—"),
     (
         "Produção de volume teste (Projeto ADJ G)",
         "Cerrada",
         "Novo volume será necessário caso haja continuidade dos testes ou produção em maior escala.",
     ),
-    (
-        "Agendamento da avaliação nas propriedades (Projeto ADJ G)",
-        "Cerrada",
-        "—",
-    ),
+    ("Agendamento da avaliação nas propriedades (Projeto ADJ G)", "Cerrada", "—"),
     (
         "Revisão do manejo dos produtores e organização da pesquisa, materiais e protocolos para teste de compatibilidade (Projeto ADJ G)",
         "Cerrada",
         "—",
     ),
-    (
-        "Relatórios dos testes – Fazenda Multiagri",
-        "Cerrada",
-        "—",
-    ),
-    (
-        "Formulação com D-Limoneno",
-        "Cerrada",
-        "—",
-    ),
-    (
-        "Treinamento de Brigadista",
-        "Cerrada",
-        "—",
-    ),
-    (
-        "Treinamento de Emergência Química",
-        "Cerrada",
-        "—",
-    ),
-    (
-        "Troca da coluna de resina do deionizador",
-        "Cerrada",
-        "Substituição realizada.",
-    ),
-    (
-        "Treinamento de Uso Correto de EPI",
-        "Cerrada",
-        "Conclusão prevista para 25/07.",
-    ),
-    (
-        "Avaliar embalagem tipo bag de adjuvantes",
-        "Cerrada",
-        "Aprovado",
-    ),
+    ("Relatórios dos testes – Fazenda Multiagri", "Cerrada", "—"),
+    ("Formulação com D-Limoneno", "Cerrada", "—"),
+    ("Treinamento de Brigadista", "Cerrada", "—"),
+    ("Treinamento de Emergência Química", "Cerrada", "—"),
+    ("Troca da coluna de resina do deionizador", "Cerrada", "Substituição realizada."),
+    ("Treinamento de Uso Correto de EPI", "Cerrada", "Conclusão prevista para 25/07."),
+    ("Avaliar embalagem tipo bag de adjuvantes", "Cerrada", "Aprovado"),
     (
         "Teste de compatibilidade de calda e relatório (ADJ G).",
         "Cerrada",
         "Refazer teste e identificar outros manejos.",
     ),
-    (
-        "Ajuste de performance do AAS",
-        "Cerrada",
-        "Após reunião com Tecnal.",
-    ),
-    (
-        "Teste de emulsão e relatório de Formulação com D-Limoneno",
-        "Cerrada",
-        "—",
-    ),
-    (
-        "Teste de pulverização aérea (drone)",
-        "Cerrada",
-        "—",
-    ),
+    ("Ajuste de performance do AAS", "Cerrada", "Após reunião com Tecnal."),
+    ("Teste de emulsão e relatório de Formulação com D-Limoneno", "Cerrada", "—"),
+    ("Teste de pulverização aérea (drone)", "Cerrada", "—"),
     (
         "Conferência de estoque e atualização da planilha",
         "En ejecución",
         "Mensalmente, dia 25",
     ),
-    (
-        "Mapa mensal da PF",
-        "En ejecución",
-        "Mensalmente, dia 26",
-    ),
+    ("Mapa mensal da PF", "En ejecución", "Mensalmente, dia 26"),
     (
         "Revisão da curva de calibração de Cu (alta sensibilidade)",
         "En ejecución",
@@ -149,21 +93,13 @@ SEED = [
         "En ejecución",
         "Fazer teste de compatibilidade com herbicidas e inseticidas, sem fungicidas.",
     ),
-    (
-        "Teste de compatibilidade de calda e relatório (MSO-TC).",
-        "En ejecución",
-        "",
-    ),
+    ("Teste de compatibilidade de calda e relatório (MSO-TC).", "En ejecución", ""),
     (
         "Organização do laboratório sugeridas durante o treinamento de análises de solo",
         "Pendiente",
         "Necessário definir prioridade e cronograma.",
     ),
-    (
-        "Identificação de balanças",
-        "Pendiente",
-        "Verificar modelo e imprimir",
-    ),
+    ("Identificação de balanças", "Pendiente", "Verificar modelo e imprimir"),
     (
         "Fazer curva de Ca e Mg e analisar amostra de água mineral",
         "Pendiente",
@@ -230,13 +166,12 @@ RECURRENCIAS = [
 
 
 # ============================================================
-# COLORES SEVION
+# IDENTIDAD VISUAL
 # ============================================================
 
 BRAND_GREEN = "#19734A"
 BRAND_DARK = "#183D2D"
 BRAND_BG = "#F7F8F6"
-BRAND_SOFT = "#F0F3F0"
 BRAND_BORDER = "#DDE5DF"
 TEXT_MUTED = "#66766E"
 
@@ -247,10 +182,6 @@ COLOR_WAIT = "#4878A8"
 COLOR_NEUTRAL = "#8A9690"
 
 
-# ============================================================
-# STREAMLIT
-# ============================================================
-
 st.set_page_config(
     page_title="SEV | Control de Tareas",
     page_icon="✅",
@@ -259,141 +190,137 @@ st.set_page_config(
 )
 
 
-# ============================================================
-# ESTILO VISUAL
-# ============================================================
-
 st.markdown(
     f"""
-    <style>
+<style>
 
-    html, body, [class*="css"] {{
-        font-family: Inter, "Segoe UI", Arial, sans-serif;
-    }}
+html, body, [class*="css"] {{
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+}}
 
-    .stApp {{
-        background: {BRAND_BG};
-        color: {BRAND_DARK};
-    }}
+.stApp {{
+    background: {BRAND_BG};
+    color: {BRAND_DARK};
+}}
 
-    .block-container {{
-        padding-top: 2.7rem;
-        padding-bottom: 2.2rem;
-        max-width: 1500px;
-    }}
+.block-container {{
+    padding-top: 2.5rem;
+    padding-bottom: 2.2rem;
+    max-width: 1500px;
+}}
 
-    [data-testid="stSidebar"] {{
-        background: #F3F5F3;
-        border-right: 1px solid {BRAND_BORDER};
-    }}
+[data-testid="stSidebar"] {{
+    background: #F3F5F3;
+    border-right: 1px solid {BRAND_BORDER};
+}}
 
-    [data-testid="stSidebar"] * {{
-        color: #253A30 !important;
-    }}
+[data-testid="stSidebar"] * {{
+    color: #253A30 !important;
+}}
 
-    [data-testid="stSidebar"] [role="radiogroup"] label {{
-        border-radius: 9px;
-        padding-top: 0.30rem;
-        padding-bottom: 0.30rem;
-    }}
+[data-testid="stSidebar"] [role="radiogroup"] label {{
+    border-radius: 9px;
+    padding-top: 0.30rem;
+    padding-bottom: 0.30rem;
+}}
 
-    [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
-        background: #E8EEE9;
-    }}
+[data-testid="stSidebar"] [role="radiogroup"] label:hover {{
+    background: #E8EEE9;
+}}
 
-    h1, h2, h3 {{
-        color: {BRAND_DARK};
-        letter-spacing: -0.02em;
-    }}
+h1, h2, h3 {{
+    color: {BRAND_DARK};
+    letter-spacing: -0.02em;
+}}
 
-    div[data-testid="stMetric"] {{
-        background: white;
-        border: 1px solid {BRAND_BORDER};
-        border-radius: 14px;
-        padding: 13px 15px;
-        box-shadow: 0 1px 2px rgba(20, 55, 40, 0.03);
-    }}
+div[data-testid="stMetric"] {{
+    background: white;
+    border: 1px solid {BRAND_BORDER};
+    border-radius: 14px;
+    padding: 13px 15px;
+    box-shadow: 0 1px 2px rgba(20, 55, 40, 0.03);
+}}
 
-    div[data-testid="stMetricLabel"] {{
-        color: #607168;
-        font-weight: 600;
-    }}
+div[data-testid="stMetricLabel"] {{
+    color: #607168;
+    font-weight: 600;
+}}
 
-    div[data-testid="stMetricValue"] {{
-        color: {BRAND_DARK};
-    }}
+div[data-testid="stMetricValue"] {{
+    color: {BRAND_DARK};
+}}
 
-    .sev-header {{
-        border-bottom: 1px solid {BRAND_BORDER};
-        padding-bottom: 17px;
-        margin-bottom: 20px;
-    }}
+.sev-header {{
+    border-bottom: 1px solid {BRAND_BORDER};
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+}}
 
-    .sev-kicker {{
-        color: {BRAND_GREEN};
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.10em;
-        text-transform: uppercase;
-        margin-bottom: 5px;
-    }}
+.sev-kicker {{
+    color: {BRAND_GREEN};
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}}
 
-    .sev-title {{
-        color: {BRAND_DARK};
-        font-size: 2.1rem;
-        font-weight: 750;
-        line-height: 1.10;
-    }}
+.sev-title {{
+    color: {BRAND_DARK};
+    font-size: 2.1rem;
+    font-weight: 750;
+    line-height: 1.10;
+}}
 
-    .sev-subtitle {{
-        color: {TEXT_MUTED};
-        font-size: 0.92rem;
-        margin-top: 6px;
-    }}
+.sev-subtitle {{
+    color: {TEXT_MUTED};
+    font-size: 0.92rem;
+    margin-top: 6px;
+}}
 
-    .sev-section {{
-        margin-top: 1.4rem;
-        margin-bottom: 0.6rem;
-    }}
+.sev-section {{
+    margin-top: 1.3rem;
+    margin-bottom: 0.65rem;
+}}
 
-    .sev-section-title {{
-        color: {BRAND_DARK};
-        font-size: 1.15rem;
-        font-weight: 700;
-    }}
+.sev-section-title {{
+    color: {BRAND_DARK};
+    font-size: 1.15rem;
+    font-weight: 700;
+}}
 
-    .sev-section-note {{
-        color: {TEXT_MUTED};
-        font-size: 0.80rem;
-        margin-top: 2px;
-    }}
+.sev-section-note {{
+    color: {TEXT_MUTED};
+    font-size: 0.80rem;
+    margin-top: 2px;
+}}
 
-    [data-testid="stDataFrame"] {{
-        border: 1px solid {BRAND_BORDER};
-        border-radius: 12px;
-        overflow: hidden;
-    }}
+[data-testid="stDataFrame"] {{
+    border: 1px solid {BRAND_BORDER};
+    border-radius: 12px;
+    overflow: hidden;
+}}
 
-    .stButton > button {{
-        border-radius: 10px;
-    }}
+.stButton > button {{
+    border-radius: 10px;
+}}
 
-    button[kind="primary"] {{
-        background-color: {BRAND_GREEN} !important;
-        border-color: {BRAND_GREEN} !important;
-        color: white !important;
-    }}
+button[kind="primary"] {{
+    background-color: {BRAND_GREEN} !important;
+    border-color: {BRAND_GREEN} !important;
+    color: white !important;
+}}
 
-    .sev-footer {{
-        border-top: 1px solid {BRAND_BORDER};
-        margin-top: 2rem;
-        padding-top: 1rem;
-        color: {TEXT_MUTED};
-        font-size: 0.78rem;
-    }}
+.sev-footer {{
+    border-top: 1px solid {BRAND_BORDER};
+    margin-top: 2rem;
+    padding-top: 1rem;
+    color: {TEXT_MUTED};
+    font-size: 0.78rem;
+}}
 
-    </style>
-    """,
+</style>
+""",
     unsafe_allow_html=True,
 )
 
@@ -424,44 +351,31 @@ def render_header():
 
     with text_col:
 
+        header_html = (
+            '<div class="sev-header">'
+            '<div class="sev-kicker">Gestión operacional</div>'
+            '<div class="sev-title">Control de Tareas</div>'
+            f'<div class="sev-subtitle">{APP_VERSION} · planificación, ejecución y cumplimiento</div>'
+            '</div>'
+        )
+
         st.markdown(
-            f"""
-            <div class="sev-header">
-
-                <div class="sev-kicker">
-                    Gestión operacional
-                </div>
-
-                <div class="sev-title">
-                    Control de Tareas
-                </div>
-
-                <div class="sev-subtitle">
-                    {APP_VERSION} · planificación, ejecución y cumplimiento
-                </div>
-
-            </div>
-            """,
+            header_html,
             unsafe_allow_html=True,
         )
 
 
 def section(title, note=""):
 
+    section_html = (
+        '<div class="sev-section">'
+        f'<div class="sev-section-title">{title}</div>'
+        f'<div class="sev-section-note">{note}</div>'
+        '</div>'
+    )
+
     st.markdown(
-        f"""
-        <div class="sev-section">
-
-            <div class="sev-section-title">
-                {title}
-            </div>
-
-            <div class="sev-section-note">
-                {note}
-            </div>
-
-        </div>
-        """,
+        section_html,
         unsafe_allow_html=True,
     )
 
@@ -500,51 +414,28 @@ def init_db():
         CREATE TABLE IF NOT EXISTS tasks(
 
             id INTEGER PRIMARY KEY,
-
             code TEXT UNIQUE NOT NULL,
-
             title TEXT NOT NULL,
-
             description TEXT,
-
             sector TEXT,
-
             area TEXT,
-
             maintenance_type TEXT,
-
             assignee_id INTEGER,
-
             priority TEXT,
-
             requested TEXT,
-
             start_date TEXT,
-
             due_date TEXT,
-
             status TEXT,
-
             progress REAL DEFAULT 0,
-
             observation TEXT,
-
             token TEXT UNIQUE,
-
             accepted_at TEXT,
-
             finished_at TEXT,
-
             closed_at TEXT,
-
             imported INTEGER DEFAULT 0,
-
             recurrence TEXT,
-
             recurrence_day INTEGER,
-
             recurrence_parent_id INTEGER,
-
             created_at TEXT
 
         );
@@ -552,19 +443,12 @@ def init_db():
         CREATE TABLE IF NOT EXISTS updates(
 
             id INTEGER PRIMARY KEY,
-
             task_id INTEGER,
-
             update_date TEXT,
-
             progress REAL,
-
             hours REAL,
-
             work_done TEXT,
-
             blockers TEXT,
-
             created_at TEXT
 
         );
@@ -620,27 +504,21 @@ def init_db():
             recurrence_day = None
 
             if "Mensalmente" in observation:
-
                 recurrence = "Mensual"
 
             if "dia 25" in observation:
-
                 recurrence_day = 25
 
             elif "dia 26" in observation:
-
                 recurrence_day = 26
 
             if status == "Cerrada":
-
                 progress = 100
 
             elif status == "En ejecución":
-
                 progress = 25
 
             else:
-
                 progress = 0
 
             code = (
@@ -650,7 +528,6 @@ def init_db():
             c.execute(
                 """
                 INSERT INTO tasks(
-
                     code,
                     title,
                     sector,
@@ -666,7 +543,6 @@ def init_db():
                     recurrence,
                     recurrence_day,
                     created_at
-
                 )
                 VALUES(
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -730,7 +606,6 @@ def next_code(
     ).fetchall()
 
     if own_connection:
-
         c.close()
 
     numbers = []
@@ -765,7 +640,7 @@ def next_code(
 
 
 # ============================================================
-# CÁLCULO AVANCE TEÓRICO
+# AVANCE TEÓRICO
 # ============================================================
 
 def theoretical(
@@ -779,14 +654,12 @@ def theoretical(
     )
 
     if row["status"] == "Cerrada":
-
         return 100.0
 
     if (
         not row["start_date"]
         or not row["due_date"]
     ):
-
         return None
 
     start = pd.to_datetime(
@@ -798,11 +671,9 @@ def theoretical(
     ).date()
 
     if reference <= start:
-
         return 0.0
 
     if reference >= due:
-
         return 100.0
 
     total_days = max(
@@ -829,14 +700,12 @@ def theoretical(
 def traffic_light(row):
 
     if row["status"] == "Cerrada":
-
         return "🟢 Cerrada"
 
     if (
         row["status"]
         == "Terminada - espera cierre"
     ):
-
         return "🔵 Espera cierre"
 
     theoretical_progress = theoretical(
@@ -844,7 +713,6 @@ def traffic_light(row):
     )
 
     if theoretical_progress is None:
-
         return "⚪ Sin cronograma"
 
     real_progress = float(
@@ -859,7 +727,6 @@ def traffic_light(row):
         ).date()
         and real_progress < 100
     ):
-
         return "🔴 Vencida"
 
     difference = (
@@ -868,11 +735,9 @@ def traffic_light(row):
     )
 
     if difference >= -5:
-
         return "🟢 En término"
 
     if difference >= -15:
-
         return "🟡 Atención"
 
     return "🔴 Atrasada"
@@ -883,7 +748,6 @@ def schedule_delta(row):
     expected = theoretical(row)
 
     if expected is None:
-
         return None
 
     return round(
@@ -986,15 +850,10 @@ def generate_recurring():
         """
         SELECT *
         FROM tasks
-
         WHERE recurrence IS NOT NULL
-
         AND recurrence != 'No'
-
         AND recurrence_parent_id IS NULL
-
         AND due_date IS NOT NULL
-
         AND due_date != ''
         """
     ).fetchall()
@@ -1011,7 +870,6 @@ def generate_recurring():
         )
 
         if not next_due:
-
             continue
 
         if (
@@ -1019,16 +877,13 @@ def generate_recurring():
             > date.today()
             + timedelta(days=45)
         ):
-
             continue
 
         existing = c.execute(
             """
             SELECT 1
             FROM tasks
-
             WHERE recurrence_parent_id = ?
-
             AND due_date = ?
             """,
             (
@@ -1038,7 +893,6 @@ def generate_recurring():
         ).fetchone()
 
         if existing:
-
             continue
 
         next_start = next_due
@@ -1075,7 +929,6 @@ def generate_recurring():
         c.execute(
             """
             INSERT INTO tasks(
-
                 code,
                 title,
                 description,
@@ -1095,7 +948,6 @@ def generate_recurring():
                 recurrence_day,
                 recurrence_parent_id,
                 created_at
-
             )
             VALUES(
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -1355,7 +1207,6 @@ def gantt_chart(view):
 # ============================================================
 
 init_db()
-
 generate_recurring()
 
 
@@ -1363,9 +1214,7 @@ generate_recurring()
 # PORTAL DEL RESPONSABLE
 # ============================================================
 
-token = st.query_params.get(
-    "token"
-)
+token = st.query_params.get("token")
 
 
 if token:
@@ -1380,12 +1229,9 @@ if token:
             t.*,
             p.name,
             p.email
-
         FROM tasks t
-
         JOIN people p
         ON p.id = t.assignee_id
-
         WHERE t.token = ?
         """,
         (
@@ -1400,7 +1246,6 @@ if token:
         )
 
         c.close()
-
         st.stop()
 
     section(
@@ -1509,11 +1354,9 @@ if token:
             c.execute(
                 """
                 UPDATE tasks
-
                 SET
                     accepted_at = ?,
                     status = 'Aceptada'
-
                 WHERE id = ?
                 """,
                 (
@@ -1523,7 +1366,6 @@ if token:
             )
 
             c.commit()
-
             st.rerun()
 
     if task["status"] not in (
@@ -1578,7 +1420,6 @@ if token:
             c.execute(
                 """
                 INSERT INTO updates(
-
                     task_id,
                     update_date,
                     progress,
@@ -1586,7 +1427,6 @@ if token:
                     work_done,
                     blockers,
                     created_at
-
                 )
                 VALUES(
                     ?, ?, ?, ?, ?, ?, ?
@@ -1624,7 +1464,6 @@ if token:
             c.execute(
                 """
                 UPDATE tasks
-
                 SET
                     progress = ?,
                     status = ?,
@@ -1633,7 +1472,6 @@ if token:
                         ?,
                         finished_at
                     )
-
                 WHERE id = ?
                 """,
                 (
@@ -1645,27 +1483,18 @@ if token:
             )
 
             c.commit()
-
             st.rerun()
 
     history = pd.read_sql_query(
         """
         SELECT
-
             update_date AS Fecha,
-
             progress AS "Avance %",
-
             hours AS Horas,
-
             work_done AS "Trabajo realizado",
-
             blockers AS Bloqueos
-
         FROM updates
-
         WHERE task_id = ?
-
         ORDER BY id DESC
         """,
         c,
@@ -1689,11 +1518,7 @@ if token:
     c.close()
 
     st.markdown(
-        f"""
-        <div class="sev-footer">
-        SEV · Control de Tareas · {APP_VERSION}
-        </div>
-        """,
+        f'<div class="sev-footer">SEV · Control de Tareas · {APP_VERSION}</div>',
         unsafe_allow_html=True,
     )
 
@@ -1728,18 +1553,12 @@ c = con()
 tasks = pd.read_sql_query(
     """
     SELECT
-
         t.*,
-
         p.name AS assignee,
-
         p.email
-
     FROM tasks t
-
     JOIN people p
     ON p.id = t.assignee_id
-
     ORDER BY t.id DESC
     """,
     c,
@@ -1750,9 +1569,7 @@ people = pd.read_sql_query(
     """
     SELECT *
     FROM people
-
     WHERE active = 1
-
     ORDER BY name
     """,
     c,
@@ -2272,7 +2089,6 @@ elif page == "Nueva tarea":
             c.execute(
                 """
                 INSERT INTO tasks(
-
                     code,
                     title,
                     description,
@@ -2291,7 +2107,6 @@ elif page == "Nueva tarea":
                     recurrence,
                     recurrence_day,
                     created_at
-
                 )
                 VALUES(
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -2925,11 +2740,9 @@ elif page == "Cierres pendientes":
                     c.execute(
                         """
                         UPDATE tasks
-
                         SET
                             status = 'Cerrada',
                             closed_at = ?
-
                         WHERE id = ?
                         """,
                         (
@@ -2941,7 +2754,6 @@ elif page == "Cierres pendientes":
                     )
 
                     c.commit()
-
                     st.rerun()
 
 
@@ -2953,10 +2765,6 @@ c.close()
 
 
 st.markdown(
-    f"""
-    <div class="sev-footer">
-        SEV · Control de Tareas · {APP_VERSION}
-    </div>
-    """,
+    f'<div class="sev-footer">SEV · Control de Tareas · {APP_VERSION}</div>',
     unsafe_allow_html=True,
 )
