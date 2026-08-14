@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import sqlite3
 import secrets
@@ -7,21 +6,28 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
+
 
 # ============================================================
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.0"
+APP_VERSION = "V2.1"
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 ASSETS_DIR = BASE_DIR / "assets"
+
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DB = str(DATA_DIR / "tareas.db")
 LOGO = ASSETS_DIR / "sevion_logo.png"
+
+
+# ============================================================
+# PERSONAS
+# ============================================================
 
 PEOPLE = [
     ("Camille Maia", "camille.maia@sevion.com.br"),
@@ -32,7 +38,158 @@ PEOPLE = [
     ("Marcela Roque", "marcela.roque@sevion.com.br"),
 ]
 
-SEED = [('Relatório de resultados de amostras de adjuvantes (Lotes)', 'Cerrada', '—'), ('Relatório de teste de emulsão (Projeto ADJ G)', 'Cerrada', '—'), ('Produção de volume teste (Projeto ADJ G)', 'Cerrada', 'Novo volume será necessário caso haja continuidade dos testes ou produção em maior escala.'), ('Agendamento da avaliação nas propriedades (Projeto ADJ G)', 'Cerrada', '—'), ('Revisão do manejo dos produtores e organização da pesquisa, materiais e protocolos para teste de compatibilidade (Projeto ADJ G)', 'Cerrada', '—'), ('Relatórios dos testes – Fazenda Multiagri', 'Cerrada', '—'), ('Formulação com D-Limoneno', 'Cerrada', '—'), ('Treinamento de Brigadista', 'Cerrada', '—'), ('Treinamento de Emergência Química', 'Cerrada', '—'), ('Troca da coluna de resina do deionizador', 'Cerrada', 'Substituição realizada.'), ('Treinamento de Uso Correto de EPI', 'Cerrada', 'Conclusão prevista para 25/07.'), ('Avaliar embalagem tipo bag de adjuvantes', 'Cerrada', 'Aprovado'), ('Teste de compatibilidade de calda e relatório (ADJ G).', 'Cerrada', 'Refazer teste e identificar outros manejos.'), ('Ajuste de performance do AAS', 'Cerrada', 'Após reunião com Tecnal.'), ('Teste de emulsão e relatório de Formulação com D-Limoneno', 'Cerrada', '—'), ('Teste de pulverização aérea (drone)', 'Cerrada', '—'), ('Conferência de estoque e atualização da planilha', 'En ejecución', 'Mensalmente, dia 25'), ('Mapa mensal da PF', 'En ejecución', 'Mensalmente, dia 26'), ('Revisão da curva de calibração de Cu (alta sensibilidade)', 'En ejecución', 'Refazer.'), ('Teste de pulverização aérea (drone - Derquian)', 'En ejecución', 'Previsão de conclusão até 13/08.'), ('Testes e relatório de Formulação com D-Limoneno', 'En ejecución', 'Fazer teste de compatibilidade com herbicidas e inseticidas, sem fungicidas.'), ('Teste de compatibilidade de calda e relatório (MSO-TC).', 'En ejecución', ''), ('Organização do laboratório sugeridas durante o treinamento de análises de solo', 'Pendiente', 'Necessário definir prioridade e cronograma.'), ('Identificação de balanças', 'Pendiente', 'Verificar modelo e imprimir'), ('Fazer curva de Ca e Mg e analisar amostra de água mineral', 'Pendiente', 'Necessário definir prioridade e cronograma.'), ('Repetição das formulações de fertilizantes para confirmação das garantias', 'Pendiente', 'Necessário definir prioridade e cronograma.'), ('Preparo das formulações discutidas na consultoria', 'Pendiente', 'Necessário definir prioridade e cronograma.'), ('Análises de CQ dos fertilizantes formulados', 'Pendiente', 'Dependente da conclusão das formulações.')]
+
+# ============================================================
+# TAREAS INICIALES DE CAMILLE
+# ============================================================
+
+SEED = [
+    (
+        "Relatório de resultados de amostras de adjuvantes (Lotes)",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Relatório de teste de emulsão (Projeto ADJ G)",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Produção de volume teste (Projeto ADJ G)",
+        "Cerrada",
+        "Novo volume será necessário caso haja continuidade dos testes ou produção em maior escala.",
+    ),
+    (
+        "Agendamento da avaliação nas propriedades (Projeto ADJ G)",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Revisão do manejo dos produtores e organização da pesquisa, materiais e protocolos para teste de compatibilidade (Projeto ADJ G)",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Relatórios dos testes – Fazenda Multiagri",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Formulação com D-Limoneno",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Treinamento de Brigadista",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Treinamento de Emergência Química",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Troca da coluna de resina do deionizador",
+        "Cerrada",
+        "Substituição realizada.",
+    ),
+    (
+        "Treinamento de Uso Correto de EPI",
+        "Cerrada",
+        "Conclusão prevista para 25/07.",
+    ),
+    (
+        "Avaliar embalagem tipo bag de adjuvantes",
+        "Cerrada",
+        "Aprovado",
+    ),
+    (
+        "Teste de compatibilidade de calda e relatório (ADJ G).",
+        "Cerrada",
+        "Refazer teste e identificar outros manejos.",
+    ),
+    (
+        "Ajuste de performance do AAS",
+        "Cerrada",
+        "Após reunião com Tecnal.",
+    ),
+    (
+        "Teste de emulsão e relatório de Formulação com D-Limoneno",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Teste de pulverização aérea (drone)",
+        "Cerrada",
+        "—",
+    ),
+    (
+        "Conferência de estoque e atualização da planilha",
+        "En ejecución",
+        "Mensalmente, dia 25",
+    ),
+    (
+        "Mapa mensal da PF",
+        "En ejecución",
+        "Mensalmente, dia 26",
+    ),
+    (
+        "Revisão da curva de calibração de Cu (alta sensibilidade)",
+        "En ejecución",
+        "Refazer.",
+    ),
+    (
+        "Teste de pulverização aérea (drone - Derquian)",
+        "En ejecución",
+        "Previsão de conclusão até 13/08.",
+    ),
+    (
+        "Testes e relatório de Formulação com D-Limoneno",
+        "En ejecución",
+        "Fazer teste de compatibilidade com herbicidas e inseticidas, sem fungicidas.",
+    ),
+    (
+        "Teste de compatibilidade de calda e relatório (MSO-TC).",
+        "En ejecución",
+        "",
+    ),
+    (
+        "Organização do laboratório sugeridas durante o treinamento de análises de solo",
+        "Pendiente",
+        "Necessário definir prioridade e cronograma.",
+    ),
+    (
+        "Identificação de balanças",
+        "Pendiente",
+        "Verificar modelo e imprimir",
+    ),
+    (
+        "Fazer curva de Ca e Mg e analisar amostra de água mineral",
+        "Pendiente",
+        "Necessário definir prioridade e cronograma.",
+    ),
+    (
+        "Repetição das formulações de fertilizantes para confirmação das garantias",
+        "Pendiente",
+        "Necessário definir prioridade e cronograma.",
+    ),
+    (
+        "Preparo das formulações discutidas na consultoria",
+        "Pendiente",
+        "Necessário definir prioridade e cronograma.",
+    ),
+    (
+        "Análises de CQ dos fertilizantes formulados",
+        "Pendiente",
+        "Dependente da conclusão das formulações.",
+    ),
+]
+
+
+# ============================================================
+# CLASIFICACIONES
+# ============================================================
 
 SECTORES = {
     "Laboratorio": "LAB",
@@ -48,157 +205,475 @@ AREAS = {
     "Adjuvante": "ADJ",
 }
 
-TIPOS_MANT = ["Preventivo", "Correctivo", "Proactivo", "Predictivo"]
-PRIORIDADES = ["Crítica", "Alta", "Media", "Baja"]
-RECURRENCIAS = ["No", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"]
+TIPOS_MANT = [
+    "Preventivo",
+    "Correctivo",
+    "Proactivo",
+    "Predictivo",
+]
+
+PRIORIDADES = [
+    "Crítica",
+    "Alta",
+    "Media",
+    "Baja",
+]
+
+RECURRENCIAS = [
+    "No",
+    "Semanal",
+    "Mensual",
+    "Trimestral",
+    "Semestral",
+    "Anual",
+]
+
+
+# ============================================================
+# COLORES SEVION
+# ============================================================
+
+BRAND_GREEN = "#19734A"
+BRAND_DARK = "#183D2D"
+BRAND_BG = "#F7F8F6"
+BRAND_SOFT = "#F0F3F0"
+BRAND_BORDER = "#DDE5DF"
+TEXT_MUTED = "#66766E"
+
+COLOR_OK = "#4C946E"
+COLOR_WARNING = "#D59B29"
+COLOR_DANGER = "#C7463A"
+COLOR_WAIT = "#4878A8"
+COLOR_NEUTRAL = "#8A9690"
+
+
+# ============================================================
+# STREAMLIT
+# ============================================================
 
 st.set_page_config(
     page_title="SEV | Control de Tareas",
     page_icon="✅",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
+
 # ============================================================
-# IDENTIDAD VISUAL MINIMALISTA
+# ESTILO VISUAL
 # ============================================================
 
 st.markdown(
-    """
+    f"""
     <style>
-    .stApp {background:#F7F8F6;}
-    [data-testid="stSidebar"] {background:#F0F3F0;border-right:1px solid #DDE5DF;}
-    .block-container {padding-top:1.4rem;padding-bottom:2rem;max-width:1500px;}
-    h1,h2,h3 {color:#183D2D; letter-spacing:-0.02em;}
-    div[data-testid="stMetric"] {
-        background:#FFFFFF;
-        border:1px solid #DDE5DF;
-        border-radius:14px;
-        padding:14px 16px;
-    }
-    div[data-testid="stMetricLabel"] {color:#5C6F65;}
-    div[data-testid="stMetricValue"] {color:#183D2D;}
-    .sev-header {
-        display:flex;align-items:center;gap:24px;
-        padding:8px 0 14px 0;border-bottom:1px solid #DDE5DF;margin-bottom:18px;
-    }
-    .sev-kicker {color:#19734A;font-weight:700;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;}
-    .sev-title {font-size:2rem;font-weight:700;color:#183D2D;line-height:1.1;margin:2px 0;}
-    .sev-subtitle {color:#66766E;font-size:.95rem;}
-    .small-note {color:#75847C;font-size:.84rem;}
-    .status-box {
-        background:#FFFFFF;border:1px solid #DDE5DF;border-radius:12px;
-        padding:10px 14px;margin:6px 0;
-    }
+
+    html, body, [class*="css"] {{
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+    }}
+
+    .stApp {{
+        background: {BRAND_BG};
+        color: {BRAND_DARK};
+    }}
+
+    .block-container {{
+        padding-top: 2.7rem;
+        padding-bottom: 2.2rem;
+        max-width: 1500px;
+    }}
+
+    [data-testid="stSidebar"] {{
+        background: #F3F5F3;
+        border-right: 1px solid {BRAND_BORDER};
+    }}
+
+    [data-testid="stSidebar"] * {{
+        color: #253A30 !important;
+    }}
+
+    [data-testid="stSidebar"] [role="radiogroup"] label {{
+        border-radius: 9px;
+        padding-top: 0.30rem;
+        padding-bottom: 0.30rem;
+    }}
+
+    [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
+        background: #E8EEE9;
+    }}
+
+    h1, h2, h3 {{
+        color: {BRAND_DARK};
+        letter-spacing: -0.02em;
+    }}
+
+    div[data-testid="stMetric"] {{
+        background: white;
+        border: 1px solid {BRAND_BORDER};
+        border-radius: 14px;
+        padding: 13px 15px;
+        box-shadow: 0 1px 2px rgba(20, 55, 40, 0.03);
+    }}
+
+    div[data-testid="stMetricLabel"] {{
+        color: #607168;
+        font-weight: 600;
+    }}
+
+    div[data-testid="stMetricValue"] {{
+        color: {BRAND_DARK};
+    }}
+
+    .sev-header {{
+        border-bottom: 1px solid {BRAND_BORDER};
+        padding-bottom: 17px;
+        margin-bottom: 20px;
+    }}
+
+    .sev-kicker {{
+        color: {BRAND_GREEN};
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }}
+
+    .sev-title {{
+        color: {BRAND_DARK};
+        font-size: 2.1rem;
+        font-weight: 750;
+        line-height: 1.10;
+    }}
+
+    .sev-subtitle {{
+        color: {TEXT_MUTED};
+        font-size: 0.92rem;
+        margin-top: 6px;
+    }}
+
+    .sev-section {{
+        margin-top: 1.4rem;
+        margin-bottom: 0.6rem;
+    }}
+
+    .sev-section-title {{
+        color: {BRAND_DARK};
+        font-size: 1.15rem;
+        font-weight: 700;
+    }}
+
+    .sev-section-note {{
+        color: {TEXT_MUTED};
+        font-size: 0.80rem;
+        margin-top: 2px;
+    }}
+
+    [data-testid="stDataFrame"] {{
+        border: 1px solid {BRAND_BORDER};
+        border-radius: 12px;
+        overflow: hidden;
+    }}
+
+    .stButton > button {{
+        border-radius: 10px;
+    }}
+
+    button[kind="primary"] {{
+        background-color: {BRAND_GREEN} !important;
+        border-color: {BRAND_GREEN} !important;
+        color: white !important;
+    }}
+
+    .sev-footer {{
+        border-top: 1px solid {BRAND_BORDER};
+        margin-top: 2rem;
+        padding-top: 1rem;
+        color: {TEXT_MUTED};
+        font-size: 0.78rem;
+    }}
+
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+
+# ============================================================
+# COMPONENTES VISUALES
+# ============================================================
+
 def render_header():
-    c1, c2 = st.columns([1, 5], vertical_alignment="center")
-    with c1:
+
+    logo_col, text_col = st.columns(
+        [1.0, 5.5],
+        vertical_alignment="center",
+    )
+
+    with logo_col:
+
         if LOGO.exists():
-            st.image(str(LOGO), use_container_width=True)
-    with c2:
+
+            st.image(
+                str(LOGO),
+                width=175,
+            )
+
+        else:
+
+            st.markdown("### Sevion")
+
+    with text_col:
+
         st.markdown(
             f"""
             <div class="sev-header">
-              <div>
-                <div class="sev-kicker">Gestión operacional</div>
-                <div class="sev-title">Control de Tareas</div>
-                <div class="sev-subtitle">{APP_VERSION} · seguimiento, cumplimiento y planificación</div>
-              </div>
+
+                <div class="sev-kicker">
+                    Gestión operacional
+                </div>
+
+                <div class="sev-title">
+                    Control de Tareas
+                </div>
+
+                <div class="sev-subtitle">
+                    {APP_VERSION} · planificación, ejecución y cumplimiento
+                </div>
+
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+
+def section(title, note=""):
+
+    st.markdown(
+        f"""
+        <div class="sev-section">
+
+            <div class="sev-section-title">
+                {title}
+            </div>
+
+            <div class="sev-section-note">
+                {note}
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 # ============================================================
 # BASE DE DATOS
 # ============================================================
 
 def con():
-    c = sqlite3.connect(DB, check_same_thread=False)
-    c.row_factory = sqlite3.Row
-    return c
+
+    connection = sqlite3.connect(
+        DB,
+        check_same_thread=False,
+    )
+
+    connection.row_factory = sqlite3.Row
+
+    return connection
+
 
 def init_db():
+
     c = con()
+
     c.executescript(
         """
         CREATE TABLE IF NOT EXISTS people(
+
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             active INTEGER DEFAULT 1
+
         );
 
         CREATE TABLE IF NOT EXISTS tasks(
+
             id INTEGER PRIMARY KEY,
+
             code TEXT UNIQUE NOT NULL,
+
             title TEXT NOT NULL,
+
             description TEXT,
+
             sector TEXT,
+
             area TEXT,
+
             maintenance_type TEXT,
+
             assignee_id INTEGER,
+
             priority TEXT,
+
             requested TEXT,
+
             start_date TEXT,
+
             due_date TEXT,
+
             status TEXT,
+
             progress REAL DEFAULT 0,
+
             observation TEXT,
+
             token TEXT UNIQUE,
+
             accepted_at TEXT,
+
             finished_at TEXT,
+
             closed_at TEXT,
+
             imported INTEGER DEFAULT 0,
+
             recurrence TEXT,
+
             recurrence_day INTEGER,
+
             recurrence_parent_id INTEGER,
+
             created_at TEXT
+
         );
 
         CREATE TABLE IF NOT EXISTS updates(
+
             id INTEGER PRIMARY KEY,
+
             task_id INTEGER,
+
             update_date TEXT,
+
             progress REAL,
+
             hours REAL,
+
             work_done TEXT,
+
             blockers TEXT,
+
             created_at TEXT
+
         );
         """
     )
+
     for name, email in PEOPLE:
+
         c.execute(
-            "INSERT OR IGNORE INTO people(name,email,active) VALUES(?,?,1)",
-            (name, email),
+            """
+            INSERT OR IGNORE INTO people(
+                name,
+                email,
+                active
+            )
+            VALUES (?, ?, 1)
+            """,
+            (
+                name,
+                email,
+            ),
         )
+
     c.commit()
 
-    if c.execute("SELECT COUNT(*) AS n FROM tasks").fetchone()["n"] == 0:
+    total = c.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM tasks
+        """
+    ).fetchone()["n"]
+
+    if total == 0:
+
         camille = c.execute(
-            "SELECT id FROM people WHERE email=?",
-            ("camille.maia@sevion.com.br",),
+            """
+            SELECT id
+            FROM people
+            WHERE email = ?
+            """,
+            (
+                "camille.maia@sevion.com.br",
+            ),
         ).fetchone()["id"]
 
-        for i, (title, status, obs) in enumerate(SEED, 1):
-            recurrence = "Mensual" if "Mensalmente" in obs else None
-            recurrence_day = 25 if "dia 25" in obs else 26 if "dia 26" in obs else None
-            progress = 100 if status == "Cerrada" else 25 if status == "En ejecución" else 0
+        for i, (
+            title,
+            status,
+            observation,
+        ) in enumerate(SEED, 1):
+
+            recurrence = None
+            recurrence_day = None
+
+            if "Mensalmente" in observation:
+
+                recurrence = "Mensual"
+
+            if "dia 25" in observation:
+
+                recurrence_day = 25
+
+            elif "dia 26" in observation:
+
+                recurrence_day = 26
+
+            if status == "Cerrada":
+
+                progress = 100
+
+            elif status == "En ejecución":
+
+                progress = 25
+
+            else:
+
+                progress = 0
+
+            code = (
+                f"SEV-LAB-FER-2026-{i:04d}"
+            )
 
             c.execute(
                 """
                 INSERT INTO tasks(
-                    code,title,sector,area,assignee_id,priority,requested,status,
-                    progress,observation,token,imported,recurrence,recurrence_day,created_at
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+
+                    code,
+                    title,
+                    sector,
+                    area,
+                    assignee_id,
+                    priority,
+                    requested,
+                    status,
+                    progress,
+                    observation,
+                    token,
+                    imported,
+                    recurrence,
+                    recurrence_day,
+                    created_at
+
+                )
+                VALUES(
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 (
-                    f"SEV-LAB-FER-2026-{i:04d}",
+                    code,
                     title,
                     "LAB",
                     "FER",
@@ -207,7 +682,7 @@ def init_db():
                     "2026-08-13",
                     status,
                     progress,
-                    obs,
+                    observation,
                     secrets.token_urlsafe(24),
                     1,
                     recurrence,
@@ -215,238 +690,910 @@ def init_db():
                     datetime.now().isoformat(),
                 ),
             )
+
         c.commit()
+
     c.close()
 
-def next_code(sector, area):
+
+# ============================================================
+# GENERACIÓN DE CÓDIGOS
+# ============================================================
+
+def next_code(
+    sector,
+    area,
+    connection=None,
+):
+
     year = date.today().year
-    c = con()
+
+    own_connection = (
+        connection is None
+    )
+
+    c = (
+        connection
+        if connection is not None
+        else con()
+    )
+
     rows = c.execute(
-        "SELECT code FROM tasks WHERE code LIKE ?",
-        (f"SEV-%-{year}-%",),
+        """
+        SELECT code
+        FROM tasks
+        WHERE code LIKE ?
+        """,
+        (
+            f"SEV-%-{year}-%",
+        ),
     ).fetchall()
-    c.close()
-    nums = []
-    for r in rows:
+
+    if own_connection:
+
+        c.close()
+
+    numbers = []
+
+    for row in rows:
+
         try:
-            nums.append(int(r["code"].split("-")[-1]))
+
+            numbers.append(
+                int(
+                    row["code"]
+                    .split("-")[-1]
+                )
+            )
+
         except Exception:
+
             pass
-    return f"SEV-{sector}-{area}-{year}-{max(nums, default=0)+1:04d}"
+
+    next_number = (
+        max(
+            numbers,
+            default=0,
+        )
+        + 1
+    )
+
+    return (
+        f"SEV-{sector}-{area}-"
+        f"{year}-{next_number:04d}"
+    )
+
 
 # ============================================================
-# LÓGICA DE CUMPLIMIENTO
+# CÁLCULO AVANCE TEÓRICO
 # ============================================================
 
-def theoretical(row, reference=None):
-    reference = reference or date.today()
+def theoretical(
+    row,
+    reference=None,
+):
+
+    reference = (
+        reference
+        or date.today()
+    )
 
     if row["status"] == "Cerrada":
+
         return 100.0
-    if not row["start_date"] or not row["due_date"]:
+
+    if (
+        not row["start_date"]
+        or not row["due_date"]
+    ):
+
         return None
 
-    start = pd.to_datetime(row["start_date"]).date()
-    due = pd.to_datetime(row["due_date"]).date()
+    start = pd.to_datetime(
+        row["start_date"]
+    ).date()
+
+    due = pd.to_datetime(
+        row["due_date"]
+    ).date()
 
     if reference <= start:
+
         return 0.0
+
     if reference >= due:
+
         return 100.0
 
-    total = max((due - start).days, 1)
-    elapsed = (reference - start).days
-    return round(100 * elapsed / total, 1)
+    total_days = max(
+        (due - start).days,
+        1,
+    )
+
+    elapsed_days = (
+        reference - start
+    ).days
+
+    return round(
+        100
+        * elapsed_days
+        / total_days,
+        1,
+    )
+
+
+# ============================================================
+# SEMÁFORO
+# ============================================================
 
 def traffic_light(row):
+
     if row["status"] == "Cerrada":
+
         return "🟢 Cerrada"
-    if row["status"] == "Terminada - espera cierre":
+
+    if (
+        row["status"]
+        == "Terminada - espera cierre"
+    ):
+
         return "🔵 Espera cierre"
 
-    th = theoretical(row)
-    if th is None:
+    theoretical_progress = theoretical(
+        row
+    )
+
+    if theoretical_progress is None:
+
         return "⚪ Sin cronograma"
 
-    real = float(row["progress"] or 0)
+    real_progress = float(
+        row["progress"] or 0
+    )
 
-    if row["due_date"] and date.today() > pd.to_datetime(row["due_date"]).date() and real < 100:
+    if (
+        row["due_date"]
+        and date.today()
+        > pd.to_datetime(
+            row["due_date"]
+        ).date()
+        and real_progress < 100
+    ):
+
         return "🔴 Vencida"
 
-    delta = real - th
-    if delta >= -5:
+    difference = (
+        real_progress
+        - theoretical_progress
+    )
+
+    if difference >= -5:
+
         return "🟢 En término"
-    if delta >= -15:
+
+    if difference >= -15:
+
         return "🟡 Atención"
+
     return "🔴 Atrasada"
 
+
 def schedule_delta(row):
-    th = theoretical(row)
-    if th is None:
+
+    expected = theoretical(row)
+
+    if expected is None:
+
         return None
-    return round(float(row["progress"] or 0) - th, 1)
+
+    return round(
+        float(
+            row["progress"] or 0
+        )
+        - expected,
+        1,
+    )
+
 
 # ============================================================
 # RECURRENCIAS
 # ============================================================
 
-def add_months(d, months):
-    m = d.month - 1 + months
-    y = d.year + m // 12
-    m = m % 12 + 1
-    day = min(d.day, calendar.monthrange(y, m)[1])
-    return date(y, m, day)
+def add_months(
+    original_date,
+    months,
+):
 
-def next_recurrence(d, kind):
-    if kind == "Semanal":
-        return d + timedelta(days=7)
-    if kind == "Mensual":
-        return add_months(d, 1)
-    if kind == "Trimestral":
-        return add_months(d, 3)
-    if kind == "Semestral":
-        return add_months(d, 6)
-    if kind == "Anual":
-        return add_months(d, 12)
+    month = (
+        original_date.month
+        - 1
+        + months
+    )
+
+    year = (
+        original_date.year
+        + month // 12
+    )
+
+    month = (
+        month % 12
+        + 1
+    )
+
+    day = min(
+        original_date.day,
+        calendar.monthrange(
+            year,
+            month,
+        )[1],
+    )
+
+    return date(
+        year,
+        month,
+        day,
+    )
+
+
+def next_recurrence(
+    original_date,
+    recurrence,
+):
+
+    if recurrence == "Semanal":
+
+        return (
+            original_date
+            + timedelta(days=7)
+        )
+
+    if recurrence == "Mensual":
+
+        return add_months(
+            original_date,
+            1,
+        )
+
+    if recurrence == "Trimestral":
+
+        return add_months(
+            original_date,
+            3,
+        )
+
+    if recurrence == "Semestral":
+
+        return add_months(
+            original_date,
+            6,
+        )
+
+    if recurrence == "Anual":
+
+        return add_months(
+            original_date,
+            12,
+        )
+
     return None
 
+
 def generate_recurring():
+
     c = con()
+
     masters = c.execute(
         """
-        SELECT * FROM tasks
+        SELECT *
+        FROM tasks
+
         WHERE recurrence IS NOT NULL
-          AND recurrence != 'No'
-          AND recurrence_parent_id IS NULL
-          AND due_date IS NOT NULL
-          AND due_date != ''
+
+        AND recurrence != 'No'
+
+        AND recurrence_parent_id IS NULL
+
+        AND due_date IS NOT NULL
+
+        AND due_date != ''
         """
     ).fetchall()
 
-    for r in masters:
-        due = pd.to_datetime(r["due_date"]).date()
-        nxt = next_recurrence(due, r["recurrence"])
+    for task in masters:
 
-        if not nxt or nxt > date.today() + timedelta(days=45):
+        due = pd.to_datetime(
+            task["due_date"]
+        ).date()
+
+        next_due = next_recurrence(
+            due,
+            task["recurrence"],
+        )
+
+        if not next_due:
+
             continue
 
-        exists = c.execute(
-            "SELECT 1 FROM tasks WHERE recurrence_parent_id=? AND due_date=?",
-            (r["id"], nxt.isoformat()),
+        if (
+            next_due
+            > date.today()
+            + timedelta(days=45)
+        ):
+
+            continue
+
+        existing = c.execute(
+            """
+            SELECT 1
+            FROM tasks
+
+            WHERE recurrence_parent_id = ?
+
+            AND due_date = ?
+            """,
+            (
+                task["id"],
+                next_due.isoformat(),
+            ),
         ).fetchone()
-        if exists:
+
+        if existing:
+
             continue
 
-        start = nxt
-        if r["start_date"]:
-            old_start = pd.to_datetime(r["start_date"]).date()
-            duration = max((due - old_start).days, 0)
-            start = nxt - timedelta(days=duration)
+        next_start = next_due
 
-        code = next_code(r["sector"], r["area"])
+        if task["start_date"]:
+
+            previous_start = (
+                pd.to_datetime(
+                    task["start_date"]
+                ).date()
+            )
+
+            duration = max(
+                (
+                    due
+                    - previous_start
+                ).days,
+                0,
+            )
+
+            next_start = (
+                next_due
+                - timedelta(
+                    days=duration
+                )
+            )
+
+        code = next_code(
+            task["sector"],
+            task["area"],
+            c,
+        )
+
         c.execute(
             """
             INSERT INTO tasks(
-                code,title,description,sector,area,maintenance_type,assignee_id,priority,
-                requested,start_date,due_date,status,progress,observation,token,recurrence,
-                recurrence_day,recurrence_parent_id,created_at
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+
+                code,
+                title,
+                description,
+                sector,
+                area,
+                maintenance_type,
+                assignee_id,
+                priority,
+                requested,
+                start_date,
+                due_date,
+                status,
+                progress,
+                observation,
+                token,
+                recurrence,
+                recurrence_day,
+                recurrence_parent_id,
+                created_at
+
+            )
+            VALUES(
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
             """,
             (
                 code,
-                r["title"],
-                r["description"],
-                r["sector"],
-                r["area"],
-                r["maintenance_type"],
-                r["assignee_id"],
-                r["priority"],
+                task["title"],
+                task["description"],
+                task["sector"],
+                task["area"],
+                task["maintenance_type"],
+                task["assignee_id"],
+                task["priority"],
                 date.today().isoformat(),
-                start.isoformat(),
-                nxt.isoformat(),
+                next_start.isoformat(),
+                next_due.isoformat(),
                 "Asignada",
                 0,
-                r["observation"],
+                task["observation"],
                 secrets.token_urlsafe(24),
-                r["recurrence"],
-                nxt.day,
-                r["id"],
+                task["recurrence"],
+                next_due.day,
+                task["id"],
                 datetime.now().isoformat(),
             ),
         )
+
     c.commit()
     c.close()
 
+
 # ============================================================
-# CARGA
+# GRÁFICO AVANCE REAL VS TEÓRICO
+# ============================================================
+
+def progress_chart(view):
+
+    chart = view[
+        view["Teórico %"].notna()
+    ][
+        [
+            "code",
+            "progress",
+            "Teórico %",
+            "assignee",
+        ]
+    ].copy()
+
+    if chart.empty:
+
+        st.info(
+            "Las tareas históricas sin fechas "
+            "no tienen avance teórico calculable."
+        )
+
+        return
+
+    chart_long = chart.melt(
+        id_vars=[
+            "code",
+            "assignee",
+        ],
+        value_vars=[
+            "progress",
+            "Teórico %",
+        ],
+        var_name="Serie",
+        value_name="Avance",
+    )
+
+    chart_long["Serie"] = (
+        chart_long["Serie"]
+        .replace(
+            {
+                "progress": "Real",
+                "Teórico %": "Teórico",
+            }
+        )
+    )
+
+    fig = px.bar(
+        chart_long,
+        x="code",
+        y="Avance",
+        color="Serie",
+        barmode="group",
+        hover_data=[
+            "assignee",
+        ],
+        labels={
+            "code": "Tarea",
+            "Avance": "Avance (%)",
+        },
+        color_discrete_map={
+            "Real": BRAND_GREEN,
+            "Teórico": "#AAB8B0",
+        },
+    )
+
+    fig.update_layout(
+        height=400,
+        margin=dict(
+            l=10,
+            r=10,
+            t=10,
+            b=10,
+        ),
+        legend_title_text="",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#FFFFFF",
+        font=dict(
+            color=BRAND_DARK
+        ),
+        xaxis=dict(
+            showgrid=False,
+        ),
+        yaxis=dict(
+            gridcolor="#E8ECE9",
+            range=[0, 105],
+        ),
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+    )
+
+
+# ============================================================
+# GANTT
+# ============================================================
+
+def gantt_chart(view):
+
+    gantt = view[
+        view["start_date"].notna()
+        & (view["start_date"] != "")
+        & view["due_date"].notna()
+        & (view["due_date"] != "")
+    ].copy()
+
+    if gantt.empty:
+
+        st.info(
+            "No hay tareas con fecha de inicio "
+            "y finalización para mostrar."
+        )
+
+        return
+
+    gantt["Inicio"] = pd.to_datetime(
+        gantt["start_date"]
+    )
+
+    gantt["Final"] = pd.to_datetime(
+        gantt["due_date"]
+    )
+
+    gantt["Etiqueta"] = (
+        gantt["code"]
+        + " · "
+        + gantt["title"]
+        .astype(str)
+        .str.slice(0, 45)
+    )
+
+    gantt["Cumplimiento"] = (
+        gantt["Semáforo"]
+    )
+
+    colors = {
+        "🟢 Cerrada": BRAND_GREEN,
+        "🟢 En término": COLOR_OK,
+        "🟡 Atención": COLOR_WARNING,
+        "🔴 Atrasada": COLOR_DANGER,
+        "🔴 Vencida": "#9F342C",
+        "🔵 Espera cierre": COLOR_WAIT,
+        "⚪ Sin cronograma": COLOR_NEUTRAL,
+    }
+
+    fig = px.timeline(
+        gantt.sort_values(
+            [
+                "Final",
+                "priority",
+            ]
+        ),
+        x_start="Inicio",
+        x_end="Final",
+        y="Etiqueta",
+        color="Cumplimiento",
+        color_discrete_map=colors,
+        hover_data={
+            "assignee": True,
+            "progress": ":.0f",
+            "Teórico %": ":.0f",
+            "priority": True,
+            "Inicio": "|%d/%m/%Y",
+            "Final": "|%d/%m/%Y",
+        },
+    )
+
+    fig.update_yaxes(
+        autorange="reversed",
+        title=None,
+    )
+
+    fig.update_xaxes(
+        title="Cronograma",
+        gridcolor="#E8ECE9",
+    )
+
+    fig.add_vline(
+        x=(
+            pd.Timestamp(
+                date.today()
+            ).timestamp()
+            * 1000
+        ),
+        line_width=1,
+        line_dash="dash",
+        line_color="#6B7770",
+    )
+
+    fig.update_layout(
+        height=max(
+            440,
+            min(
+                920,
+                36 * len(gantt)
+                + 170,
+            ),
+        ),
+        margin=dict(
+            l=10,
+            r=10,
+            t=10,
+            b=10,
+        ),
+        legend_title_text="",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="#FFFFFF",
+        font=dict(
+            color=BRAND_DARK
+        ),
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+    )
+
+
+# ============================================================
+# INICIALIZAR
 # ============================================================
 
 init_db()
+
 generate_recurring()
 
+
 # ============================================================
-# PORTAL RESPONSABLE
+# PORTAL DEL RESPONSABLE
 # ============================================================
 
-token = st.query_params.get("token")
+token = st.query_params.get(
+    "token"
+)
+
 
 if token:
+
     render_header()
+
     c = con()
-    row = c.execute(
+
+    task = c.execute(
         """
-        SELECT t.*, p.name, p.email
+        SELECT
+            t.*,
+            p.name,
+            p.email
+
         FROM tasks t
-        JOIN people p ON p.id=t.assignee_id
-        WHERE t.token=?
+
+        JOIN people p
+        ON p.id = t.assignee_id
+
+        WHERE t.token = ?
         """,
-        (token,),
+        (
+            token,
+        ),
     ).fetchone()
 
-    if not row:
-        st.error("Enlace inválido o revocado.")
+    if not task:
+
+        st.error(
+            "Enlace inválido o revocado."
+        )
+
         c.close()
+
         st.stop()
 
-    st.subheader(row["code"])
-    st.write(f"**Responsable:** {row['name']}")
-    st.write(f"**Tarea:** {row['title']}")
-    st.write(f"**Prioridad:** {row['priority']} · **Estado:** {row['status']}")
+    section(
+        "Tarea asignada",
+        task["code"],
+    )
+
+    st.write(
+        f"**Responsable:** "
+        f"{task['name']}"
+    )
+
+    st.write(
+        f"**Tarea:** "
+        f"{task['title']}"
+    )
+
+    st.write(
+        f"**Prioridad:** "
+        f"{task['priority']} "
+        f"· **Estado:** "
+        f"{task['status']}"
+    )
 
     m1, m2, m3 = st.columns(3)
-    m1.metric("Avance real", f"{float(row['progress'] or 0):.0f}%")
-    th = theoretical(row)
-    m2.metric("Avance teórico", "—" if th is None else f"{th:.0f}%")
-    m3.metric("Cumplimiento", traffic_light(row))
 
-    if row["observation"]:
-        st.info(row["observation"])
+    m1.metric(
+        "Avance real",
+        f"{float(task['progress'] or 0):.0f}%",
+    )
 
-    if not row["accepted_at"] and row["status"] not in ("Cerrada", "Terminada - espera cierre"):
-        if st.button("Aceptar tarea", type="primary", use_container_width=True):
-            c.execute(
-                "UPDATE tasks SET accepted_at=?,status='Aceptada' WHERE id=?",
-                (datetime.now().isoformat(), row["id"]),
+    expected = theoretical(
+        task
+    )
+
+    m2.metric(
+        "Avance teórico",
+        (
+            "—"
+            if expected is None
+            else f"{expected:.0f}%"
+        ),
+    )
+
+    m3.metric(
+        "Cumplimiento",
+        traffic_light(task),
+    )
+
+    dates1, dates2 = st.columns(2)
+
+    with dates1:
+
+        if task["start_date"]:
+
+            st.write(
+                "**Inicio:** "
+                + pd.to_datetime(
+                    task["start_date"]
+                ).strftime(
+                    "%d/%m/%Y"
+                )
             )
-            c.commit()
-            st.rerun()
 
-    if row["status"] not in ("Cerrada", "Terminada - espera cierre"):
-        with st.form("daily_update"):
-            progress = st.slider("Avance acumulado (%)", 0, 100, int(row["progress"] or 0))
-            hours = st.number_input("Horas trabajadas hoy", 0.0, 24.0, 0.0, 0.5)
-            work = st.text_area("Trabajo realizado")
-            blockers = st.text_area("Problemas / bloqueos")
-            submitted = st.form_submit_button("Guardar actualización", type="primary", use_container_width=True)
+    with dates2:
 
-        if submitted:
+        if task["due_date"]:
+
+            st.write(
+                "**Finalización prevista:** "
+                + pd.to_datetime(
+                    task["due_date"]
+                ).strftime(
+                    "%d/%m/%Y"
+                )
+            )
+
+    if task["maintenance_type"]:
+
+        st.write(
+            "**Tipo de mantenimiento:** "
+            f"{task['maintenance_type']}"
+        )
+
+    if task["observation"]:
+
+        st.info(
+            task["observation"]
+        )
+
+    if (
+        not task["accepted_at"]
+        and task["status"]
+        not in (
+            "Cerrada",
+            "Terminada - espera cierre",
+        )
+    ):
+
+        if st.button(
+            "Aceptar tarea",
+            type="primary",
+            use_container_width=True,
+        ):
+
             c.execute(
                 """
-                INSERT INTO updates(task_id,update_date,progress,hours,work_done,blockers,created_at)
-                VALUES(?,?,?,?,?,?,?)
+                UPDATE tasks
+
+                SET
+                    accepted_at = ?,
+                    status = 'Aceptada'
+
+                WHERE id = ?
                 """,
                 (
-                    row["id"],
+                    datetime.now().isoformat(),
+                    task["id"],
+                ),
+            )
+
+            c.commit()
+
+            st.rerun()
+
+    if task["status"] not in (
+        "Cerrada",
+        "Terminada - espera cierre",
+    ):
+
+        section(
+            "Actualización diaria"
+        )
+
+        with st.form(
+            "daily_update"
+        ):
+
+            progress = st.slider(
+                "Avance acumulado (%)",
+                0,
+                100,
+                int(
+                    task["progress"]
+                    or 0
+                ),
+            )
+
+            hours = st.number_input(
+                "Horas trabajadas hoy",
+                min_value=0.0,
+                max_value=24.0,
+                value=0.0,
+                step=0.5,
+            )
+
+            work = st.text_area(
+                "Trabajo realizado"
+            )
+
+            blockers = st.text_area(
+                "Problemas / bloqueos"
+            )
+
+            submitted = (
+                st.form_submit_button(
+                    "Guardar actualización",
+                    type="primary",
+                    use_container_width=True,
+                )
+            )
+
+        if submitted:
+
+            c.execute(
+                """
+                INSERT INTO updates(
+
+                    task_id,
+                    update_date,
+                    progress,
+                    hours,
+                    work_done,
+                    blockers,
+                    created_at
+
+                )
+                VALUES(
+                    ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    task["id"],
                     date.today().isoformat(),
                     progress,
                     hours,
@@ -456,42 +1603,112 @@ if token:
                 ),
             )
 
-            status = "Terminada - espera cierre" if progress == 100 else "En ejecución"
-            finished_at = datetime.now().isoformat() if progress == 100 else None
+            if progress == 100:
+
+                new_status = (
+                    "Terminada - espera cierre"
+                )
+
+                finished = (
+                    datetime.now().isoformat()
+                )
+
+            else:
+
+                new_status = (
+                    "En ejecución"
+                )
+
+                finished = None
 
             c.execute(
                 """
                 UPDATE tasks
-                SET progress=?,status=?,finished_at=COALESCE(?,finished_at)
-                WHERE id=?
+
+                SET
+                    progress = ?,
+                    status = ?,
+                    finished_at =
+                    COALESCE(
+                        ?,
+                        finished_at
+                    )
+
+                WHERE id = ?
                 """,
-                (progress, status, finished_at, row["id"]),
+                (
+                    progress,
+                    new_status,
+                    finished,
+                    task["id"],
+                ),
             )
+
             c.commit()
+
             st.rerun()
 
     history = pd.read_sql_query(
         """
-        SELECT update_date,progress,hours,work_done,blockers
-        FROM updates WHERE task_id=? ORDER BY id DESC
+        SELECT
+
+            update_date AS Fecha,
+
+            progress AS "Avance %",
+
+            hours AS Horas,
+
+            work_done AS "Trabajo realizado",
+
+            blockers AS Bloqueos
+
+        FROM updates
+
+        WHERE task_id = ?
+
+        ORDER BY id DESC
         """,
         c,
-        params=(row["id"],),
+        params=(
+            task["id"],
+        ),
     )
+
     if not history.empty:
-        st.subheader("Historial diario")
-        st.dataframe(history, hide_index=True, use_container_width=True)
+
+        section(
+            "Historial diario"
+        )
+
+        st.dataframe(
+            history,
+            hide_index=True,
+            use_container_width=True,
+        )
+
     c.close()
+
+    st.markdown(
+        f"""
+        <div class="sev-footer">
+        SEV · Control de Tareas · {APP_VERSION}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.stop()
 
+
 # ============================================================
-# ADMIN
+# PANEL ADMINISTRADOR
 # ============================================================
 
 render_header()
 
+
 page = st.sidebar.radio(
-    "NAVEGACIÓN",
+    "CONTROL DE TAREAS",
     [
         "Tablero",
         "Nueva tarea",
@@ -504,236 +1721,592 @@ page = st.sidebar.radio(
     ],
 )
 
+
 c = con()
+
+
 tasks = pd.read_sql_query(
     """
-    SELECT t.*,p.name AS assignee,p.email
-    FROM tasks t JOIN people p ON p.id=t.assignee_id
+    SELECT
+
+        t.*,
+
+        p.name AS assignee,
+
+        p.email
+
+    FROM tasks t
+
+    JOIN people p
+    ON p.id = t.assignee_id
+
     ORDER BY t.id DESC
     """,
     c,
 )
+
+
 people = pd.read_sql_query(
-    "SELECT * FROM people WHERE active=1 ORDER BY name",
+    """
+    SELECT *
+    FROM people
+
+    WHERE active = 1
+
+    ORDER BY name
+    """,
     c,
 )
 
+
 # ============================================================
-# TABLERO DINÁMICO
+# TABLERO
 # ============================================================
 
 if page == "Tablero":
-    st.subheader("Tablero de cumplimiento")
+
+    section(
+        "Tablero de cumplimiento",
+        "Visión ejecutiva de avance, cronograma y desvíos",
+    )
 
     f1, f2, f3, f4 = st.columns(4)
-    sector_filter = f1.selectbox("Sector", ["Todos"] + list(SECTORES.values()))
-    area_filter = f2.selectbox("Área", ["Todas"] + list(AREAS.values()))
-    operator_filter = f3.selectbox("Operario", ["Todos"] + people["name"].tolist())
+
+    sector_filter = f1.selectbox(
+        "Sector",
+        [
+            "Todos",
+            *SECTORES.values(),
+        ],
+    )
+
+    area_filter = f2.selectbox(
+        "Área",
+        [
+            "Todas",
+            *AREAS.values(),
+        ],
+    )
+
+    operator_filter = f3.selectbox(
+        "Operario",
+        [
+            "Todos",
+            *people["name"].tolist(),
+        ],
+    )
+
     status_filter = f4.selectbox(
         "Estado",
-        ["Todos", "Pendiente", "Asignada", "Aceptada", "En ejecución", "Terminada - espera cierre", "Cerrada"],
+        [
+            "Todos",
+            "Pendiente",
+            "Asignada",
+            "Aceptada",
+            "En ejecución",
+            "Terminada - espera cierre",
+            "Cerrada",
+        ],
     )
 
     view = tasks.copy()
+
     if sector_filter != "Todos":
-        view = view[view["sector"] == sector_filter]
+
+        view = view[
+            view["sector"]
+            == sector_filter
+        ]
+
     if area_filter != "Todas":
-        view = view[view["area"] == area_filter]
+
+        view = view[
+            view["area"]
+            == area_filter
+        ]
+
     if operator_filter != "Todos":
-        view = view[view["assignee"] == operator_filter]
+
+        view = view[
+            view["assignee"]
+            == operator_filter
+        ]
+
     if status_filter != "Todos":
-        view = view[view["status"] == status_filter]
 
-    view["Teórico %"] = view.apply(theoretical, axis=1)
-    view["Desvío pp"] = view.apply(schedule_delta, axis=1)
-    view["Semáforo"] = view.apply(traffic_light, axis=1)
+        view = view[
+            view["status"]
+            == status_filter
+        ]
 
-    open_count = int((view["status"] != "Cerrada").sum())
-    execution_count = int((view["status"] == "En ejecución").sum())
-    waiting_close = int((view["status"] == "Terminada - espera cierre").sum())
-    overdue_count = int(view["Semáforo"].astype(str).str.contains("Vencida|Atrasada").sum())
-    requested_month = int(
+    view["Teórico %"] = (
+        view.apply(
+            theoretical,
+            axis=1,
+        )
+    )
+
+    view["Desvío pp"] = (
+        view.apply(
+            schedule_delta,
+            axis=1,
+        )
+    )
+
+    view["Semáforo"] = (
+        view.apply(
+            traffic_light,
+            axis=1,
+        )
+    )
+
+    open_count = int(
         (
-            pd.to_datetime(view["requested"], errors="coerce").dt.to_period("M")
-            == pd.Period(date.today(), freq="M")
+            view["status"]
+            != "Cerrada"
         ).sum()
     )
 
-    k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Abiertas", open_count)
-    k2.metric("En ejecución", execution_count)
-    k3.metric("Con atraso", overdue_count)
-    k4.metric("Esperan cierre", waiting_close)
-    k5.metric("Solicitadas este mes", requested_month)
+    execution_count = int(
+        (
+            view["status"]
+            == "En ejecución"
+        ).sum()
+    )
 
-    st.markdown("### Avance real vs. avance teórico")
-    chart_df = view[
-        view["Teórico %"].notna()
-    ][["code", "progress", "Teórico %", "assignee"]].copy()
+    overdue_count = int(
+        view["Semáforo"]
+        .astype(str)
+        .str.contains(
+            "Vencida|Atrasada"
+        )
+        .sum()
+    )
 
-    if not chart_df.empty:
-        chart_long = chart_df.melt(
-            id_vars=["code", "assignee"],
-            value_vars=["progress", "Teórico %"],
-            var_name="Serie",
-            value_name="Avance",
-        )
-        fig_progress = px.bar(
-            chart_long,
-            x="code",
-            y="Avance",
-            color="Serie",
-            barmode="group",
-            hover_data=["assignee"],
-            labels={"code": "Tarea", "Avance": "Avance (%)"},
-        )
-        fig_progress.update_layout(
-            height=420,
-            margin=dict(l=10, r=10, t=20, b=10),
-            legend_title_text="",
-        )
-        st.plotly_chart(fig_progress, use_container_width=True)
-    else:
-        st.info("Las tareas históricas sin fechas no tienen avance teórico calculable.")
+    waiting_close = int(
+        (
+            view["status"]
+            == "Terminada - espera cierre"
+        ).sum()
+    )
 
-    st.markdown("### Planificación y cumplimiento · Gantt")
-    gantt = view[
-        view["start_date"].notna()
-        & (view["start_date"] != "")
-        & view["due_date"].notna()
-        & (view["due_date"] != "")
-    ].copy()
+    requested_month = int(
+        (
+            pd.to_datetime(
+                view["requested"],
+                errors="coerce",
+            )
+            .dt.to_period("M")
+            == pd.Period(
+                date.today(),
+                freq="M",
+            )
+        ).sum()
+    )
 
-    if not gantt.empty:
-        gantt["Inicio"] = pd.to_datetime(gantt["start_date"])
-        gantt["Final"] = pd.to_datetime(gantt["due_date"])
-        gantt["Etiqueta"] = gantt["code"] + " · " + gantt["title"].str.slice(0, 42)
-        gantt["Cumplimiento"] = gantt["Semáforo"]
+    k1, k2, k3, k4, k5 = (
+        st.columns(5)
+    )
 
-        fig_gantt = px.timeline(
-            gantt.sort_values(["Final", "priority"]),
-            x_start="Inicio",
-            x_end="Final",
-            y="Etiqueta",
-            color="Cumplimiento",
-            hover_data={
-                "assignee": True,
-                "progress": ":.0f",
-                "Teórico %": ":.0f",
-                "priority": True,
-                "Inicio": "|%d/%m/%Y",
-                "Final": "|%d/%m/%Y",
-            },
-        )
-        fig_gantt.update_yaxes(autorange="reversed", title=None)
-        fig_gantt.update_xaxes(title="Cronograma")
-        fig_gantt.add_vline(
-            x=pd.Timestamp(date.today()).timestamp() * 1000,
-            line_width=1,
-            line_dash="dash",
-        )
-        fig_gantt.update_layout(
-            height=max(420, min(900, 36 * len(gantt) + 160)),
-            margin=dict(l=10, r=10, t=20, b=10),
-            legend_title_text="",
-        )
-        st.plotly_chart(fig_gantt, use_container_width=True)
-    else:
-        st.info("No hay tareas con fecha de inicio y finalización para mostrar en Gantt.")
+    k1.metric(
+        "Abiertas",
+        open_count,
+    )
 
-    st.markdown("### Tareas que requieren atención")
+    k2.metric(
+        "En ejecución",
+        execution_count,
+    )
+
+    k3.metric(
+        "Con atraso",
+        overdue_count,
+    )
+
+    k4.metric(
+        "Esperan cierre",
+        waiting_close,
+    )
+
+    k5.metric(
+        "Solicitadas este mes",
+        requested_month,
+    )
+
+
+    section(
+        "Avance real vs. teórico",
+        "Comparación contra el avance esperado por fecha",
+    )
+
+    progress_chart(
+        view
+    )
+
+
+    section(
+        "Cronograma de cumplimiento · Gantt",
+        "La línea vertical marca la fecha actual",
+    )
+
+    gantt_chart(
+        view
+    )
+
+
+    section(
+        "Tareas que requieren atención",
+        "Prioridad para tareas amarillas y rojas",
+    )
+
     attention = view[
-        view["Semáforo"].astype(str).str.contains("🔴|🟡")
+        view["Semáforo"]
+        .astype(str)
+        .str.contains(
+            "🔴|🟡"
+        )
     ].copy()
 
     if attention.empty:
-        st.success("No hay tareas con alerta en el filtro seleccionado.")
+
+        st.success(
+            "No hay tareas con alertas "
+            "en el filtro seleccionado."
+        )
+
     else:
+
+        attention["Inicio"] = (
+            pd.to_datetime(
+                attention["start_date"],
+                errors="coerce",
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+            .fillna("—")
+        )
+
+        attention["Final"] = (
+            pd.to_datetime(
+                attention["due_date"],
+                errors="coerce",
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+            .fillna("—")
+        )
+
+        attention["Real %"] = (
+            attention["progress"]
+            .fillna(0)
+            .round(0)
+        )
+
+        attention[
+            "Teórico %"
+        ] = (
+            attention[
+                "Teórico %"
+            ]
+            .round(0)
+        )
+
         st.dataframe(
             attention[
                 [
-                    "Semáforo","code","title","assignee","priority","start_date",
-                    "due_date","progress","Teórico %","Desvío pp"
+                    "Semáforo",
+                    "code",
+                    "title",
+                    "assignee",
+                    "priority",
+                    "Inicio",
+                    "Final",
+                    "Real %",
+                    "Teórico %",
+                    "Desvío pp",
                 ]
-            ],
+            ].rename(
+                columns={
+                    "code": "Código",
+                    "title": "Tarea",
+                    "assignee": "Responsable",
+                    "priority": "Prioridad",
+                }
+            ),
             hide_index=True,
             use_container_width=True,
         )
 
-    st.markdown("### Solicitudes por mes")
+
+    section(
+        "Solicitudes por mes",
+        "Cantidad de tareas solicitadas",
+    )
+
     monthly = view.copy()
-    monthly["Mes"] = pd.to_datetime(monthly["requested"], errors="coerce").dt.to_period("M").astype(str)
-    monthly = monthly.groupby("Mes").size().reset_index(name="Tareas")
+
+    monthly["Mes"] = (
+        pd.to_datetime(
+            monthly["requested"],
+            errors="coerce",
+        )
+        .dt.to_period("M")
+        .astype(str)
+    )
+
+    monthly = (
+        monthly
+        .groupby("Mes")
+        .size()
+        .reset_index(
+            name="Tareas"
+        )
+    )
+
     if not monthly.empty:
-        fig_month = px.line(monthly, x="Mes", y="Tareas", markers=True)
-        fig_month.update_layout(height=300, margin=dict(l=10,r=10,t=10,b=10))
-        st.plotly_chart(fig_month, use_container_width=True)
+
+        fig_month = px.line(
+            monthly,
+            x="Mes",
+            y="Tareas",
+            markers=True,
+        )
+
+        fig_month.update_traces(
+            line_color=BRAND_GREEN,
+            marker_color=BRAND_GREEN,
+            line_width=3,
+        )
+
+        fig_month.update_layout(
+            height=300,
+            margin=dict(
+                l=10,
+                r=10,
+                t=10,
+                b=10,
+            ),
+            paper_bgcolor=(
+                "rgba(0,0,0,0)"
+            ),
+            plot_bgcolor="#FFFFFF",
+            font=dict(
+                color=BRAND_DARK
+            ),
+            xaxis=dict(
+                showgrid=False
+            ),
+            yaxis=dict(
+                gridcolor="#E8ECE9"
+            ),
+        )
+
+        st.plotly_chart(
+            fig_month,
+            use_container_width=True,
+        )
+
 
 # ============================================================
 # NUEVA TAREA
 # ============================================================
 
 elif page == "Nueva tarea":
-    st.subheader("Nueva tarea")
 
-    sector_name = st.selectbox("Sector", list(SECTORES))
-    area_name = st.selectbox("Área / familia", list(AREAS))
+    section(
+        "Nueva tarea",
+        "La codificación SEV se genera automáticamente",
+    )
+
+    sector_name = st.selectbox(
+        "Sector",
+        list(SECTORES),
+    )
+
+    area_name = st.selectbox(
+        "Área / familia",
+        list(AREAS),
+    )
+
     maintenance_type = None
-    if SECTORES[sector_name] == "MANT":
-        maintenance_type = st.selectbox("Tipo de mantenimiento", TIPOS_MANT)
 
-    with st.form("new_task"):
-        title = st.text_input("Tarea")
-        description = st.text_area("Descripción")
+    if (
+        SECTORES[
+            sector_name
+        ]
+        == "MANT"
+    ):
 
-        a, b = st.columns(2)
-        priority = a.selectbox("Prioridad", PRIORIDADES)
-        assignee_id = b.selectbox(
-            "Responsable",
-            people["id"].tolist(),
-            format_func=lambda x: people.loc[people["id"] == x, "name"].iloc[0],
+        maintenance_type = (
+            st.selectbox(
+                "Tipo de mantenimiento",
+                TIPOS_MANT,
+            )
         )
 
-        a, b = st.columns(2)
-        start = a.date_input("Fecha de inicio", format="DD/MM/YYYY")
-        due = b.date_input("Fecha de finalización", format="DD/MM/YYYY")
+    with st.form(
+        "new_task"
+    ):
 
-        recurrence = st.selectbox("Recurrencia", RECURRENCIAS)
-        observation = st.text_area("Observación")
+        title = st.text_input(
+            "Tarea"
+        )
 
-        submit = st.form_submit_button(
-            "Crear y asignar tarea",
-            type="primary",
-            use_container_width=True,
+        description = (
+            st.text_area(
+                "Descripción"
+            )
+        )
+
+        col1, col2 = (
+            st.columns(2)
+        )
+
+        priority = (
+            col1.selectbox(
+                "Prioridad",
+                PRIORIDADES,
+            )
+        )
+
+        assignee_id = (
+            col2.selectbox(
+                "Responsable",
+                people[
+                    "id"
+                ].tolist(),
+                format_func=(
+                    lambda person_id:
+                    people.loc[
+                        people["id"]
+                        == person_id,
+                        "name",
+                    ].iloc[0]
+                ),
+            )
+        )
+
+        col1, col2 = (
+            st.columns(2)
+        )
+
+        start = (
+            col1.date_input(
+                "Fecha de inicio",
+                format="DD/MM/YYYY",
+            )
+        )
+
+        due = (
+            col2.date_input(
+                "Fecha de finalización",
+                format="DD/MM/YYYY",
+            )
+        )
+
+        recurrence = (
+            st.selectbox(
+                "Recurrencia",
+                RECURRENCIAS,
+            )
+        )
+
+        observation = (
+            st.text_area(
+                "Observación"
+            )
+        )
+
+        submit = (
+            st.form_submit_button(
+                "Crear y asignar tarea",
+                type="primary",
+                use_container_width=True,
+            )
         )
 
     if submit:
+
         if not title.strip():
-            st.error("Ingresa el nombre de la tarea.")
+
+            st.error(
+                "Ingresa el nombre "
+                "de la tarea."
+            )
+
         elif due < start:
-            st.error("La fecha final no puede ser anterior a la fecha de inicio.")
+
+            st.error(
+                "La fecha final no puede "
+                "ser anterior a la fecha de inicio."
+            )
+
         else:
-            sec = SECTORES[sector_name]
-            area = AREAS[area_name]
-            code = next_code(sec, area)
-            task_token = secrets.token_urlsafe(24)
+
+            sector_code = (
+                SECTORES[
+                    sector_name
+                ]
+            )
+
+            area_code = (
+                AREAS[
+                    area_name
+                ]
+            )
+
+            code = next_code(
+                sector_code,
+                area_code,
+                c,
+            )
+
+            task_token = (
+                secrets.token_urlsafe(
+                    24
+                )
+            )
 
             c.execute(
                 """
                 INSERT INTO tasks(
-                    code,title,description,sector,area,maintenance_type,assignee_id,
-                    priority,requested,start_date,due_date,status,progress,observation,
-                    token,recurrence,recurrence_day,created_at
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+
+                    code,
+                    title,
+                    description,
+                    sector,
+                    area,
+                    maintenance_type,
+                    assignee_id,
+                    priority,
+                    requested,
+                    start_date,
+                    due_date,
+                    status,
+                    progress,
+                    observation,
+                    token,
+                    recurrence,
+                    recurrence_day,
+                    created_at
+
+                )
+                VALUES(
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
                 """,
                 (
                     code,
                     title.strip(),
                     description.strip(),
-                    sec,
-                    area,
+                    sector_code,
+                    area_code,
                     maintenance_type,
-                    int(assignee_id),
+                    int(
+                        assignee_id
+                    ),
                     priority,
                     date.today().isoformat(),
                     start.isoformat(),
@@ -742,186 +2315,648 @@ elif page == "Nueva tarea":
                     0,
                     observation.strip(),
                     task_token,
-                    None if recurrence == "No" else recurrence,
+                    (
+                        None
+                        if recurrence
+                        == "No"
+                        else recurrence
+                    ),
                     due.day,
                     datetime.now().isoformat(),
                 ),
             )
+
             c.commit()
-            st.success(f"Tarea creada: {code}")
-            st.write("Enlace del responsable:")
-            st.code(f"?token={task_token}", language=None)
+
+            st.success(
+                "Tarea creada correctamente: "
+                f"{code}"
+            )
+
+            st.write(
+                "**Enlace del responsable:**"
+            )
+
+            st.code(
+                "?token="
+                + task_token,
+                language=None,
+            )
+
 
 # ============================================================
-# TAREAS
+# LISTA DE TAREAS
 # ============================================================
 
 elif page == "Tareas":
-    st.subheader("Tareas")
+
+    section(
+        "Tareas",
+        "Listado general de seguimiento",
+    )
+
     view = tasks.copy()
-    view["Teórico %"] = view.apply(theoretical, axis=1)
-    view["Semáforo"] = view.apply(traffic_light, axis=1)
+
+    view["Teórico %"] = (
+        view.apply(
+            theoretical,
+            axis=1,
+        )
+    )
+
+    view["Semáforo"] = (
+        view.apply(
+            traffic_light,
+            axis=1,
+        )
+    )
+
+    view["Inicio"] = (
+        pd.to_datetime(
+            view["start_date"],
+            errors="coerce",
+        )
+        .dt.strftime(
+            "%d/%m/%Y"
+        )
+        .fillna("—")
+    )
+
+    view["Final"] = (
+        pd.to_datetime(
+            view["due_date"],
+            errors="coerce",
+        )
+        .dt.strftime(
+            "%d/%m/%Y"
+        )
+        .fillna("—")
+    )
+
+    display = view[
+        [
+            "Semáforo",
+            "code",
+            "title",
+            "sector",
+            "area",
+            "maintenance_type",
+            "assignee",
+            "priority",
+            "status",
+            "Inicio",
+            "Final",
+            "progress",
+            "Teórico %",
+            "observation",
+        ]
+    ].rename(
+        columns={
+            "code": "Código",
+            "title": "Tarea",
+            "sector": "Sector",
+            "area": "Área",
+            "maintenance_type": (
+                "Tipo mantenimiento"
+            ),
+            "assignee": "Responsable",
+            "priority": "Prioridad",
+            "status": "Estado",
+            "progress": "Real %",
+            "observation": "Observación",
+        }
+    )
+
     st.dataframe(
-        view[
-            [
-                "Semáforo","code","title","sector","area","maintenance_type",
-                "assignee","priority","status","start_date","due_date","progress",
-                "Teórico %","observation"
-            ]
-        ],
+        display,
         hide_index=True,
         use_container_width=True,
+        height=620,
     )
+
 
 # ============================================================
 # CALENDARIO / GANTT
 # ============================================================
 
 elif page == "Calendario / Gantt":
-    st.subheader("Calendario y Gantt")
 
-    gantt = tasks[
-        tasks["start_date"].notna()
-        & (tasks["start_date"] != "")
-        & tasks["due_date"].notna()
-        & (tasks["due_date"] != "")
+    section(
+        "Calendario y Gantt",
+        "Inicio, finalización y estado de cumplimiento",
+    )
+
+    gantt = tasks.copy()
+
+    gantt["Teórico %"] = (
+        gantt.apply(
+            theoretical,
+            axis=1,
+        )
+    )
+
+    gantt["Semáforo"] = (
+        gantt.apply(
+            traffic_light,
+            axis=1,
+        )
+    )
+
+    gantt_chart(
+        gantt
+    )
+
+    scheduled = gantt[
+        gantt["start_date"].notna()
+        & (gantt["start_date"] != "")
+        & gantt["due_date"].notna()
+        & (gantt["due_date"] != "")
     ].copy()
 
-    if gantt.empty:
-        st.info("No existen tareas con cronograma.")
-    else:
-        gantt["Inicio"] = pd.to_datetime(gantt["start_date"])
-        gantt["Final"] = pd.to_datetime(gantt["due_date"])
-        gantt["Semáforo"] = gantt.apply(traffic_light, axis=1)
-        gantt["Teórico %"] = gantt.apply(theoretical, axis=1)
-        gantt["Etiqueta"] = gantt["code"] + " · " + gantt["title"].str.slice(0, 55)
+    if not scheduled.empty:
 
-        fig = px.timeline(
-            gantt.sort_values("Final"),
-            x_start="Inicio",
-            x_end="Final",
-            y="Etiqueta",
-            color="Semáforo",
-            hover_data={
-                "assignee": True,
-                "priority": True,
-                "progress": ":.0f",
-                "Teórico %": ":.0f",
-                "Inicio": "|%d/%m/%Y",
-                "Final": "|%d/%m/%Y",
-            },
-        )
-        fig.update_yaxes(autorange="reversed", title=None)
-        fig.update_layout(
-            height=max(500, min(1000, 38 * len(gantt) + 150)),
-            margin=dict(l=10,r=10,t=20,b=10),
-            legend_title_text="",
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.markdown("### Cronograma detallado")
-        st.dataframe(
-            gantt[
-                [
-                    "Semáforo","code","title","assignee","Inicio","Final",
-                    "priority","progress","Teórico %"
+        scheduled["Inicio"] = (
+            pd.to_datetime(
+                scheduled[
+                    "start_date"
                 ]
-            ],
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+        )
+
+        scheduled["Final"] = (
+            pd.to_datetime(
+                scheduled[
+                    "due_date"
+                ]
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+        )
+
+        scheduled["Real %"] = (
+            scheduled[
+                "progress"
+            ]
+            .fillna(0)
+            .round(0)
+        )
+
+        section(
+            "Cronograma detallado"
+        )
+
+        st.dataframe(
+            scheduled[
+                [
+                    "Semáforo",
+                    "code",
+                    "title",
+                    "assignee",
+                    "Inicio",
+                    "Final",
+                    "priority",
+                    "Real %",
+                    "Teórico %",
+                ]
+            ].rename(
+                columns={
+                    "code": "Código",
+                    "title": "Tarea",
+                    "assignee": "Responsable",
+                    "priority": "Prioridad",
+                }
+            ),
             hide_index=True,
             use_container_width=True,
         )
+
 
 # ============================================================
 # RECURRENTES
 # ============================================================
 
 elif page == "Recurrentes":
-    st.subheader("Tareas recurrentes")
-    recurrent = tasks[
-        tasks["recurrence"].notna()
-        & (tasks["recurrence"] != "No")
-    ]
-    st.dataframe(
-        recurrent[
-            [
-                "code","title","sector","area","assignee","recurrence",
-                "recurrence_day","due_date","status"
-            ]
-        ],
-        hide_index=True,
-        use_container_width=True,
+
+    section(
+        "Tareas recurrentes",
+        "Programación automática de actividades repetitivas",
     )
-    st.caption("Las nuevas ocurrencias se generan dentro de una ventana de 45 días.")
+
+    recurrent = tasks[
+        tasks[
+            "recurrence"
+        ].notna()
+        & (
+            tasks[
+                "recurrence"
+            ]
+            != "No"
+        )
+    ].copy()
+
+    if recurrent.empty:
+
+        st.info(
+            "No existen tareas recurrentes."
+        )
+
+    else:
+
+        recurrent["Final"] = (
+            pd.to_datetime(
+                recurrent[
+                    "due_date"
+                ],
+                errors="coerce",
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+            .fillna("—")
+        )
+
+        st.dataframe(
+            recurrent[
+                [
+                    "code",
+                    "title",
+                    "sector",
+                    "area",
+                    "assignee",
+                    "recurrence",
+                    "recurrence_day",
+                    "Final",
+                    "status",
+                ]
+            ].rename(
+                columns={
+                    "code": "Código",
+                    "title": "Tarea",
+                    "sector": "Sector",
+                    "area": "Área",
+                    "assignee": "Responsable",
+                    "recurrence": "Recurrencia",
+                    "recurrence_day": "Día",
+                    "status": "Estado",
+                }
+            ),
+            hide_index=True,
+            use_container_width=True,
+        )
+
 
 # ============================================================
 # MANTENIMIENTO
 # ============================================================
 
 elif page == "Mantenimiento":
-    st.subheader("Mantenimiento")
-    maint = tasks[tasks["sector"] == "MANT"].copy()
 
-    if maint.empty:
-        st.info("Todavía no existen tareas de mantenimiento.")
+    section(
+        "Mantenimiento",
+        "Indicadores por tipo de mantenimiento",
+    )
+
+    maintenance = tasks[
+        tasks["sector"]
+        == "MANT"
+    ].copy()
+
+    if maintenance.empty:
+
+        st.info(
+            "Todavía no existen "
+            "tareas de mantenimiento."
+        )
+
     else:
-        q1, q2, q3, q4 = st.columns(4)
-        q1.metric("Preventivo", int((maint["maintenance_type"] == "Preventivo").sum()))
-        q2.metric("Correctivo", int((maint["maintenance_type"] == "Correctivo").sum()))
-        q3.metric("Proactivo", int((maint["maintenance_type"] == "Proactivo").sum()))
-        q4.metric("Predictivo", int((maint["maintenance_type"] == "Predictivo").sum()))
 
-        grouped = maint.groupby(["maintenance_type","status"]).size().reset_index(name="Tareas")
-        fig = px.bar(grouped, x="maintenance_type", y="Tareas", color="status", barmode="group")
-        st.plotly_chart(fig, use_container_width=True)
+        m1, m2, m3, m4 = (
+            st.columns(4)
+        )
+
+        m1.metric(
+            "Preventivo",
+            int(
+                (
+                    maintenance[
+                        "maintenance_type"
+                    ]
+                    == "Preventivo"
+                ).sum()
+            ),
+        )
+
+        m2.metric(
+            "Correctivo",
+            int(
+                (
+                    maintenance[
+                        "maintenance_type"
+                    ]
+                    == "Correctivo"
+                ).sum()
+            ),
+        )
+
+        m3.metric(
+            "Proactivo",
+            int(
+                (
+                    maintenance[
+                        "maintenance_type"
+                    ]
+                    == "Proactivo"
+                ).sum()
+            ),
+        )
+
+        m4.metric(
+            "Predictivo",
+            int(
+                (
+                    maintenance[
+                        "maintenance_type"
+                    ]
+                    == "Predictivo"
+                ).sum()
+            ),
+        )
+
+        grouped = (
+            maintenance
+            .groupby(
+                [
+                    "maintenance_type",
+                    "status",
+                ]
+            )
+            .size()
+            .reset_index(
+                name="Tareas"
+            )
+        )
+
+        fig = px.bar(
+            grouped,
+            x="maintenance_type",
+            y="Tareas",
+            color="status",
+            barmode="group",
+        )
+
+        fig.update_layout(
+            paper_bgcolor=(
+                "rgba(0,0,0,0)"
+            ),
+            plot_bgcolor="#FFFFFF",
+            font=dict(
+                color=BRAND_DARK
+            ),
+            margin=dict(
+                l=10,
+                r=10,
+                t=10,
+                b=10,
+            ),
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+        )
+
+        maintenance["Inicio"] = (
+            pd.to_datetime(
+                maintenance[
+                    "start_date"
+                ],
+                errors="coerce",
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+            .fillna("—")
+        )
+
+        maintenance["Final"] = (
+            pd.to_datetime(
+                maintenance[
+                    "due_date"
+                ],
+                errors="coerce",
+            )
+            .dt.strftime(
+                "%d/%m/%Y"
+            )
+            .fillna("—")
+        )
 
         st.dataframe(
-            maint[
+            maintenance[
                 [
-                    "code","title","area","maintenance_type","assignee",
-                    "priority","status","progress","start_date","due_date"
+                    "code",
+                    "title",
+                    "area",
+                    "maintenance_type",
+                    "assignee",
+                    "priority",
+                    "status",
+                    "progress",
+                    "Inicio",
+                    "Final",
                 ]
-            ],
+            ].rename(
+                columns={
+                    "code": "Código",
+                    "title": "Tarea",
+                    "area": "Área",
+                    "maintenance_type": (
+                        "Tipo mantenimiento"
+                    ),
+                    "assignee": "Responsable",
+                    "priority": "Prioridad",
+                    "status": "Estado",
+                    "progress": "Avance %",
+                }
+            ),
             hide_index=True,
             use_container_width=True,
         )
+
 
 # ============================================================
 # OPERARIOS
 # ============================================================
 
 elif page == "Operarios":
-    st.subheader("Operarios")
-    summary = tasks.groupby("assignee").agg(
-        Tareas=("id","count"),
-        Abiertas=("status", lambda s: (s != "Cerrada").sum()),
-        Cerradas=("status", lambda s: (s == "Cerrada").sum()),
-        Avance_promedio=("progress","mean"),
-    ).reset_index()
 
-    summary["Avance_promedio"] = summary["Avance_promedio"].fillna(0).round(1)
-    st.dataframe(summary, hide_index=True, use_container_width=True)
+    section(
+        "Operarios",
+        "Carga de trabajo y avance promedio",
+    )
+
+    summary = (
+        tasks
+        .groupby(
+            "assignee"
+        )
+        .agg(
+
+            Tareas=(
+                "id",
+                "count",
+            ),
+
+            Abiertas=(
+                "status",
+                lambda status:
+                (
+                    status
+                    != "Cerrada"
+                ).sum(),
+            ),
+
+            Cerradas=(
+                "status",
+                lambda status:
+                (
+                    status
+                    == "Cerrada"
+                ).sum(),
+            ),
+
+            Avance_promedio=(
+                "progress",
+                "mean",
+            ),
+
+        )
+        .reset_index()
+    )
+
+    summary[
+        "Avance_promedio"
+    ] = (
+        summary[
+            "Avance_promedio"
+        ]
+        .fillna(0)
+        .round(1)
+    )
+
+    summary = (
+        summary.rename(
+            columns={
+                "assignee": "Operario",
+                "Avance_promedio":
+                "Avance promedio %",
+            }
+        )
+    )
+
+    st.dataframe(
+        summary,
+        hide_index=True,
+        use_container_width=True,
+    )
+
 
 # ============================================================
-# CIERRES
+# CIERRES PENDIENTES
 # ============================================================
 
 elif page == "Cierres pendientes":
-    st.subheader("Cierres pendientes")
-    pending = tasks[tasks["status"] == "Terminada - espera cierre"]
+
+    section(
+        "Cierres pendientes",
+        "El responsable termina; el administrador aprueba el cierre",
+    )
+
+    pending = tasks[
+        tasks["status"]
+        == "Terminada - espera cierre"
+    ]
 
     if pending.empty:
-        st.success("No hay tareas esperando cierre administrativo.")
+
+        st.success(
+            "No hay tareas esperando "
+            "cierre administrativo."
+        )
+
     else:
-        for _, r in pending.iterrows():
-            with st.container(border=True):
-                st.write(f"**{r.code} · {r.title}**")
-                st.write(f"Responsable: {r.assignee} · Avance: {float(r.progress or 0):.0f}%")
-                if st.button("Aprobar cierre", key=f"close_{r.id}", type="primary"):
+
+        for _, task in (
+            pending.iterrows()
+        ):
+
+            with st.container(
+                border=True
+            ):
+
+                st.write(
+                    f"**{task.code} · "
+                    f"{task.title}**"
+                )
+
+                st.write(
+                    "Responsable: "
+                    f"**{task.assignee}**"
+                )
+
+                st.write(
+                    "Avance informado: "
+                    f"**{float(task.progress or 0):.0f}%**"
+                )
+
+                if st.button(
+                    "Aprobar cierre",
+                    key=(
+                        f"close_"
+                        f"{task.id}"
+                    ),
+                    type="primary",
+                ):
+
                     c.execute(
-                        "UPDATE tasks SET status='Cerrada',closed_at=? WHERE id=?",
-                        (datetime.now().isoformat(), int(r.id)),
+                        """
+                        UPDATE tasks
+
+                        SET
+                            status = 'Cerrada',
+                            closed_at = ?
+
+                        WHERE id = ?
+                        """,
+                        (
+                            datetime.now().isoformat(),
+                            int(
+                                task.id
+                            ),
+                        ),
                     )
+
                     c.commit()
+
                     st.rerun()
 
+
+# ============================================================
+# FINAL
+# ============================================================
+
 c.close()
+
+
+st.markdown(
+    f"""
+    <div class="sev-footer">
+        SEV · Control de Tareas · {APP_VERSION}
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
