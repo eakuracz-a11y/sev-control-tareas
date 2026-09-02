@@ -6,14 +6,24 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
+
+from mailer import (
+    build_task_url,
+    get_mail_settings,
+    send_admin_event,
+    send_assignment_email,
+    send_closed_email,
+)
+from reminders import run_reminders
 
 
 # ============================================================
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.2"
+APP_VERSION = "V2.4"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -401,6 +411,31 @@ def init_db():
             created_at TEXT
 
         );
+
+        CREATE TABLE IF NOT EXISTS email_logs(
+
+            id INTEGER PRIMARY KEY,
+            task_id INTEGER,
+            recipient TEXT,
+            email_type TEXT,
+            subject TEXT,
+            status TEXT,
+            detail TEXT,
+            reference_date TEXT,
+            sent_at TEXT
+
+        );
+
+        CREATE TABLE IF NOT EXISTS task_events(
+
+            id INTEGER PRIMARY KEY,
+            task_id INTEGER,
+            event_type TEXT,
+            actor TEXT,
+            detail TEXT,
+            created_at TEXT
+
+        );
         """
     )
 
@@ -532,6 +567,66 @@ def init_db():
         c.commit()
 
     c.close()
+
+
+# ============================================================
+# AUDITORÍA Y CORREO
+# ============================================================
+
+def log_email(connection, task_id, recipient, email_type, subject, ok, detail):
+
+    connection.execute(
+        """
+        INSERT INTO email_logs(
+            task_id, recipient, email_type, subject, status, detail, reference_date, sent_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(task_id),
+            recipient or "",
+            email_type,
+            subject,
+            "Enviado" if ok else "Error",
+            detail,
+            date.today().isoformat(),
+            datetime.now().isoformat(),
+        ),
+    )
+    connection.commit()
+
+
+def log_event(connection, task_id, event_type, actor, detail=""):
+
+    connection.execute(
+        """
+        INSERT INTO task_events(task_id, event_type, actor, detail, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            int(task_id),
+            event_type,
+            actor,
+            detail,
+            datetime.now().isoformat(),
+        ),
+    )
+    connection.commit()
+
+
+def person_for_task(connection, task_id):
+
+    row = connection.execute(
+        """
+        SELECT p.name, p.email
+        FROM tasks t
+        JOIN people p ON p.id = t.assignee_id
+        WHERE t.id = ?
+        """,
+        (int(task_id),),
+    ).fetchone()
+
+    return dict(row) if row else {"name": "", "email": ""}
 
 
 # ============================================================
@@ -1082,6 +1177,58 @@ def progress_chart(
 
 
 # ============================================================
+# CONTROL DE ACEPTACIÓN
+# ============================================================
+
+def acceptance_metrics(row, reference=None):
+
+    reference = reference or datetime.now()
+
+    assigned_raw = row.get("created_at") if hasattr(row, "get") else row["created_at"]
+    accepted_raw = row.get("accepted_at") if hasattr(row, "get") else row["accepted_at"]
+    requested_raw = row.get("requested") if hasattr(row, "get") else row["requested"]
+
+    assigned = pd.to_datetime(assigned_raw, errors="coerce")
+    if pd.isna(assigned):
+        assigned = pd.to_datetime(requested_raw, errors="coerce")
+
+    accepted = pd.to_datetime(accepted_raw, errors="coerce")
+
+    if pd.isna(assigned):
+        return {
+            "assigned_at": pd.NaT,
+            "accepted_at": accepted,
+            "acceptance_end": pd.NaT,
+            "acceptance_hours": None,
+            "acceptance_label": "Sin fecha de asignación",
+            "accepted": not pd.isna(accepted),
+        }
+
+    end = accepted if not pd.isna(accepted) else pd.Timestamp(reference)
+    hours = max((end - assigned).total_seconds() / 3600.0, 0.0)
+
+    if not pd.isna(accepted):
+        if hours < 24:
+            label = f"Aceptada en {hours:.1f} h"
+        else:
+            label = f"Aceptada en {hours / 24:.1f} días"
+    else:
+        if hours < 24:
+            label = f"Pendiente hace {hours:.1f} h"
+        else:
+            label = f"Pendiente hace {hours / 24:.1f} días"
+
+    return {
+        "assigned_at": assigned,
+        "accepted_at": accepted,
+        "acceptance_end": end,
+        "acceptance_hours": round(hours, 1),
+        "acceptance_label": label,
+        "accepted": not pd.isna(accepted),
+    }
+
+
+# ============================================================
 # GANTT
 # ============================================================
 
@@ -1090,72 +1237,47 @@ def gantt_chart(
 ):
 
     gantt = view[
-        view[
-            "start_date"
-        ].notna()
-        & (
-            view[
-                "start_date"
-            ]
-            != ""
-        )
-        & view[
-            "due_date"
-        ].notna()
-        & (
-            view[
-                "due_date"
-            ]
-            != ""
-        )
+        view["start_date"].notna()
+        & (view["start_date"] != "")
+        & view["due_date"].notna()
+        & (view["due_date"] != "")
     ].copy()
 
     if gantt.empty:
-
         st.info(
             "No hay tareas con fecha de inicio y finalización para mostrar."
         )
-
         return
 
-    gantt[
-        "Inicio"
-    ] = pd.to_datetime(
-        gantt[
-            "start_date"
-        ]
+    gantt["Inicio"] = pd.to_datetime(
+        gantt["start_date"],
+        errors="coerce",
+    )
+    gantt["Final"] = pd.to_datetime(
+        gantt["due_date"],
+        errors="coerce",
     )
 
-    gantt[
-        "Final"
-    ] = pd.to_datetime(
-        gantt[
-            "due_date"
-        ]
-    )
-
-    gantt[
-        "Etiqueta"
-    ] = (
-        gantt[
-            "code"
-        ]
+    gantt["Etiqueta"] = (
+        gantt["code"]
         + " · "
-        + gantt[
-            "title"
-        ]
-        .astype(str)
-        .str.slice(
-            0,
-            45,
-        )
+        + gantt["title"].astype(str).str.slice(0, 45)
     )
+    gantt["Cumplimiento"] = gantt["Semáforo"]
 
-    gantt[
-        "Cumplimiento"
-    ] = gantt[
-        "Semáforo"
-    ]
+    acceptance = gantt.apply(acceptance_metrics, axis=1)
+    gantt["Asignada"] = acceptance.apply(lambda x: x["assigned_at"])
+    gantt["Aceptada"] = acceptance.apply(lambda x: x["accepted_at"])
+    gantt["Fin aceptación"] = acceptance.apply(lambda x: x["acceptance_end"])
+    gantt["Demora aceptación (h)"] = acceptance.apply(
+        lambda x: x["acceptance_hours"]
+    )
+    gantt["Control aceptación"] = acceptance.apply(
+        lambda x: x["acceptance_label"]
+    )
+    gantt["Aceptación confirmada"] = acceptance.apply(
+        lambda x: x["accepted"]
+    )
 
     colors = {
         "🟢 Cerrada": BRAND_GREEN,
@@ -1168,12 +1290,7 @@ def gantt_chart(
     }
 
     fig = px.timeline(
-        gantt.sort_values(
-            [
-                "Final",
-                "priority",
-            ]
-        ),
+        gantt.sort_values(["Final", "priority"]),
         x_start="Inicio",
         x_end="Final",
         y="Etiqueta",
@@ -1186,63 +1303,93 @@ def gantt_chart(
             "priority": True,
             "Inicio": "|%d/%m/%Y",
             "Final": "|%d/%m/%Y",
+            "Control aceptación": True,
         },
     )
+
+    accepted_legend_added = False
+    pending_legend_added = False
+
+    for _, row in gantt.iterrows():
+        assigned = row["Asignada"]
+        end_acceptance = row["Fin aceptación"]
+
+        if pd.isna(assigned) or pd.isna(end_acceptance):
+            continue
+
+        accepted = bool(row["Aceptación confirmada"])
+        delay_text = row["Control aceptación"]
+
+        if accepted:
+            line_color = "#7D8B84"
+            marker_color = BRAND_GREEN
+            legend_name = "Tiempo hasta aceptación"
+            showlegend = not accepted_legend_added
+            accepted_legend_added = True
+        else:
+            line_color = COLOR_WARNING
+            marker_color = COLOR_DANGER
+            legend_name = "Pendiente de aceptación"
+            showlegend = not pending_legend_added
+            pending_legend_added = True
+
+        fig.add_trace(
+            go.Scatter(
+                x=[assigned, end_acceptance],
+                y=[row["Etiqueta"], row["Etiqueta"]],
+                mode="lines+markers",
+                name=legend_name,
+                showlegend=showlegend,
+                line=dict(
+                    color=line_color,
+                    width=7,
+                ),
+                marker=dict(
+                    color=[line_color, marker_color],
+                    size=[7, 10],
+                    symbol=["circle", "diamond"],
+                ),
+                opacity=0.82,
+                customdata=[delay_text, delay_text],
+                hovertemplate=(
+                    "<b>Control de aceptación</b><br>"
+                    "%{customdata}<br>"
+                    "%{x|%d/%m/%Y %H:%M}"
+                    "<extra></extra>"
+                ),
+            )
+        )
 
     fig.update_yaxes(
         autorange="reversed",
         title=None,
     )
-
     fig.update_xaxes(
         title="Cronograma",
         gridcolor="#E8ECE9",
     )
 
     fig.add_vline(
-        x=(
-            pd.Timestamp(
-                date.today()
-            ).timestamp()
-            * 1000
-        ),
+        x=pd.Timestamp(date.today()).timestamp() * 1000,
         line_width=1,
         line_dash="dash",
         line_color="#6B7770",
     )
 
     fig.update_layout(
-        height=max(
-            440,
-            min(
-                920,
-                36
-                * len(
-                    gantt
-                )
-                + 170,
-            ),
-        ),
-        margin=dict(
-            l=10,
-            r=10,
-            t=10,
-            b=10,
-        ),
+        height=max(440, min(920, 36 * len(gantt) + 170)),
+        margin=dict(l=10, r=10, t=10, b=10),
         legend_title_text="",
-        paper_bgcolor=(
-            "rgba(0,0,0,0)"
-        ),
+        paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="#FFFFFF",
-        font=dict(
-            color=BRAND_DARK
-        ),
+        font=dict(color=BRAND_DARK),
     )
 
     st.plotly_chart(
         fig,
         use_container_width=True,
     )
+
 
 
 # ============================================================
@@ -1442,6 +1589,35 @@ if token:
 
             c.commit()
 
+            log_event(
+                c,
+                task["id"],
+                "accepted",
+                task["name"],
+                "Tarea aceptada por el responsable.",
+            )
+            accepted_task = dict(task)
+            accepted_task["status"] = "Aceptada"
+            person_mail = {"name": task["name"], "email": task["email"]}
+            admin_ok, admin_detail = send_admin_event(
+                accepted_task,
+                person_mail,
+                "Tarea aceptada",
+                f"{task['name']} aceptó la tarea {task['code']}.",
+                BASE_DIR,
+            )
+            settings = get_mail_settings(BASE_DIR)
+            if settings.admin_email:
+                log_email(
+                    c,
+                    task["id"],
+                    settings.admin_email,
+                    "accepted_admin",
+                    f"Tarea aceptada · {task['code']}",
+                    admin_ok,
+                    admin_detail,
+                )
+
             st.rerun()
 
     if task[
@@ -1567,6 +1743,46 @@ if token:
 
             c.commit()
 
+            log_event(
+                c,
+                task["id"],
+                "progress_update",
+                task["name"],
+                f"Avance {progress:.0f}% · Horas {hours:.1f} · Trabajo: {work or '—'} · Bloqueos: {blockers or '—'}",
+            )
+
+            updated_task = dict(task)
+            updated_task["progress"] = progress
+            updated_task["status"] = new_status
+            person_mail = {"name": task["name"], "email": task["email"]}
+            event_name = (
+                "Tarea finalizada · espera cierre"
+                if progress == 100
+                else "Actualización de avance"
+            )
+            detail = (
+                f"{task['name']} informó {progress:.0f}% de avance. "
+                f"Horas: {hours:.1f}. Trabajo: {work or '—'}. Bloqueos: {blockers or '—'}."
+            )
+            admin_ok, admin_detail = send_admin_event(
+                updated_task,
+                person_mail,
+                event_name,
+                detail,
+                BASE_DIR,
+            )
+            settings = get_mail_settings(BASE_DIR)
+            if settings.admin_email:
+                log_email(
+                    c,
+                    task["id"],
+                    settings.admin_email,
+                    "progress_admin",
+                    f"{event_name} · {task['code']}",
+                    admin_ok,
+                    admin_detail,
+                )
+
             st.rerun()
 
     history = (
@@ -1632,6 +1848,7 @@ page = st.sidebar.radio(
         "Mantenimiento",
         "Operarios",
         "Cierres pendientes",
+        "Avisos",
     ],
 )
 
@@ -2331,17 +2548,75 @@ elif page == "Nueva tarea":
 
             c.commit()
 
+            new_task_id = c.execute(
+                "SELECT id FROM tasks WHERE code = ?",
+                (code,),
+            ).fetchone()["id"]
+
+            person_row = people.loc[
+                people["id"] == int(assignee_id)
+            ].iloc[0]
+
+            task_mail = {
+                "id": int(new_task_id),
+                "code": code,
+                "title": title.strip(),
+                "priority": priority,
+                "start_date": start.strftime("%d/%m/%Y"),
+                "due_date": due.strftime("%d/%m/%Y"),
+                "token": task_token,
+                "progress": 0,
+            }
+            person_mail = {
+                "name": str(person_row["name"]),
+                "email": str(person_row["email"]),
+            }
+
+            mail_ok, mail_detail = send_assignment_email(
+                task_mail,
+                person_mail,
+                BASE_DIR,
+            )
+            log_email(
+                c,
+                new_task_id,
+                person_mail["email"],
+                "assignment",
+                f"Nueva tarea asignada · {code}",
+                mail_ok,
+                mail_detail,
+            )
+            log_event(
+                c,
+                new_task_id,
+                "created",
+                "Administrador",
+                f"Tarea asignada a {person_mail['name']}",
+            )
+
             st.success(
                 f"Tarea creada correctamente: {code}"
             )
+
+            if mail_ok:
+                st.success(
+                    f"Correo enviado a {person_mail['email']}."
+                )
+            else:
+                st.warning(
+                    "La tarea fue creada, pero el correo no pudo enviarse: "
+                    + mail_detail
+                )
 
             st.write(
                 "**Enlace del responsable:**"
             )
 
             st.code(
-                "?token="
-                + task_token
+                build_task_url(
+                    task_token,
+                    BASE_DIR,
+                )
             )
 
 
@@ -2485,6 +2760,70 @@ elif page == "Calendario / Gantt":
         )
     )
 
+    acceptance_rows = gantt.apply(acceptance_metrics, axis=1)
+    acceptance_hours = pd.Series(
+        [
+            item["acceptance_hours"]
+            for item in acceptance_rows
+            if item["acceptance_hours"] is not None
+        ],
+        dtype=float,
+    )
+    accepted_hours = pd.Series(
+        [
+            item["acceptance_hours"]
+            for item in acceptance_rows
+            if item["accepted"]
+            and item["acceptance_hours"] is not None
+        ],
+        dtype=float,
+    )
+    pending_acceptance = int(
+        sum(1 for item in acceptance_rows if not item["accepted"])
+    )
+    accepted_24h = int(
+        sum(
+            1
+            for item in acceptance_rows
+            if item["accepted"]
+            and item["acceptance_hours"] is not None
+            and item["acceptance_hours"] <= 24
+        )
+    )
+    total_accepted = int(
+        sum(1 for item in acceptance_rows if item["accepted"])
+    )
+
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("Pendientes de aceptación", pending_acceptance)
+    a2.metric(
+        "Demora media de aceptación",
+        "—"
+        if accepted_hours.empty
+        else f"{accepted_hours.mean():.1f} h",
+    )
+    a3.metric(
+        "Aceptadas dentro de 24 h",
+        "—"
+        if total_accepted == 0
+        else f"{accepted_24h}/{total_accepted}",
+    )
+    a4.metric(
+        "Mayor demora registrada",
+        "—"
+        if acceptance_hours.empty
+        else (
+            f"{acceptance_hours.max():.1f} h"
+            if acceptance_hours.max() < 24
+            else f"{acceptance_hours.max() / 24:.1f} días"
+        ),
+    )
+
+    st.caption(
+        "En el Gantt, la línea adicional muestra el tiempo entre la asignación "
+        "y la aceptación. Si todavía no fue aceptada, se extiende hasta el momento actual."
+    )
+
     gantt_chart(
         gantt
     )
@@ -2552,6 +2891,21 @@ elif page == "Calendario / Gantt":
             )
         )
 
+        scheduled["Asignada"] = pd.to_datetime(
+            scheduled["created_at"],
+            errors="coerce",
+        ).dt.strftime("%d/%m/%Y %H:%M").fillna("—")
+
+        scheduled["Aceptada"] = pd.to_datetime(
+            scheduled["accepted_at"],
+            errors="coerce",
+        ).dt.strftime("%d/%m/%Y %H:%M").fillna("Pendiente")
+
+        scheduled["Demora aceptación"] = scheduled.apply(
+            lambda row: acceptance_metrics(row)["acceptance_label"],
+            axis=1,
+        )
+
         section(
             "Cronograma detallado"
         )
@@ -2563,6 +2917,9 @@ elif page == "Calendario / Gantt":
                     "code",
                     "title",
                     "assignee",
+                    "Asignada",
+                    "Aceptada",
+                    "Demora aceptación",
                     "Inicio",
                     "Final",
                     "priority",
@@ -2992,7 +3349,113 @@ elif page == "Cierres pendientes":
 
                     c.commit()
 
+                    closed_task = task.to_dict()
+                    person_mail = {
+                        "name": str(task.assignee),
+                        "email": str(task.email),
+                    }
+                    mail_ok, mail_detail = send_closed_email(
+                        closed_task,
+                        person_mail,
+                        BASE_DIR,
+                    )
+                    log_email(
+                        c,
+                        int(task.id),
+                        person_mail["email"],
+                        "closed",
+                        f"Tarea cerrada · {task.code}",
+                        mail_ok,
+                        mail_detail,
+                    )
+                    log_event(
+                        c,
+                        int(task.id),
+                        "closed",
+                        "Administrador",
+                        "Cierre administrativo aprobado.",
+                    )
+
                     st.rerun()
+
+
+# ============================================================
+# AVISOS Y SEGUIMIENTO
+# ============================================================
+
+elif page == "Avisos":
+
+    section(
+        "Avisos y seguimiento",
+        "Control de correos automáticos y recordatorios de avance",
+    )
+
+    settings = get_mail_settings(BASE_DIR)
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric(
+        "SMTP",
+        "Configurado" if settings.configured else "Pendiente",
+    )
+    m2.metric(
+        "Correo administrador",
+        settings.admin_email or "Pendiente",
+    )
+    m3.metric(
+        "URL pública",
+        "Configurada" if settings.app_base_url else "Pendiente",
+    )
+
+    if not settings.configured or not settings.app_base_url:
+        st.warning(
+            "Para enviar enlaces por correo configura SMTP y APP_BASE_URL en .streamlit/secrets.toml."
+        )
+
+    if st.button(
+        "Ejecutar revisión de avisos ahora",
+        type="primary",
+        use_container_width=True,
+    ):
+        result = run_reminders(DB)
+        st.success(
+            f"Revisión terminada · revisadas {result['checked']} · "
+            f"enviadas {result['sent']} · errores {result['failed']} · "
+            f"omitidas {result['skipped']}"
+        )
+
+    section(
+        "Historial de correos",
+        "Registro de asignaciones, avances, recordatorios y cierres",
+    )
+
+    email_history = pd.read_sql_query(
+        """
+        SELECT
+            e.sent_at AS Fecha,
+            t.code AS Código,
+            p.name AS Responsable,
+            e.recipient AS Destinatario,
+            e.email_type AS Tipo,
+            e.status AS Estado,
+            e.detail AS Detalle
+        FROM email_logs e
+        LEFT JOIN tasks t ON t.id = e.task_id
+        LEFT JOIN people p ON p.id = t.assignee_id
+        ORDER BY e.id DESC
+        LIMIT 300
+        """,
+        c,
+    )
+
+    if email_history.empty:
+        st.info("Todavía no hay correos registrados.")
+    else:
+        st.dataframe(
+            email_history,
+            hide_index=True,
+            use_container_width=True,
+            height=520,
+        )
 
 
 # ============================================================
