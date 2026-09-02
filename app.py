@@ -23,7 +23,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.6"
+APP_VERSION = "V2.7"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -409,7 +409,8 @@ def init_db():
             recurrence TEXT,
             recurrence_day INTEGER,
             recurrence_parent_id INTEGER,
-            created_at TEXT
+            created_at TEXT,
+            archived INTEGER DEFAULT 0
 
         );
 
@@ -452,6 +453,18 @@ def init_db():
         );
         """
     )
+
+    # Migración V2.7: permite quitar tareas de las listas operativas
+    # sin borrar su historial, correos ni eventos de auditoría.
+    task_columns = {
+        row["name"]
+        for row in c.execute("PRAGMA table_info(tasks)").fetchall()
+    }
+    if "archived" not in task_columns:
+        c.execute(
+            "ALTER TABLE tasks ADD COLUMN archived INTEGER DEFAULT 0"
+        )
+        c.commit()
 
     for name, email in PEOPLE:
 
@@ -1879,6 +1892,7 @@ tasks = pd.read_sql_query(
     FROM tasks t
     JOIN people p
     ON p.id = t.assignee_id
+    WHERE COALESCE(t.archived, 0) = 0
     ORDER BY t.id DESC
     """,
     c,
@@ -2766,43 +2780,39 @@ elif page == "Tareas":
 
     section(
         "Tareas",
-        "Listado general, edición y cierre administrativo",
+        "Gestión rápida por acción · cambiar estado, cerrar, editar o quitar de la lista",
     )
 
     view = tasks.copy()
-
-    view["Teórico %"] = view.apply(
-        theoretical,
-        axis=1,
-    )
-
-    view["Semáforo"] = view.apply(
-        traffic_light,
-        axis=1,
-    )
-
+    view["Teórico %"] = view.apply(theoretical, axis=1)
+    view["Semáforo"] = view.apply(traffic_light, axis=1)
     view["Inicio"] = (
-        pd.to_datetime(
-            view["start_date"],
-            errors="coerce",
-        )
+        pd.to_datetime(view["start_date"], errors="coerce")
         .dt.strftime("%d/%m/%Y")
         .fillna("—")
     )
-
     view["Final"] = (
-        pd.to_datetime(
-            view["due_date"],
-            errors="coerce",
-        )
+        pd.to_datetime(view["due_date"], errors="coerce")
         .dt.strftime("%d/%m/%Y")
         .fillna("—")
     )
 
-    f1, f2, f3 = st.columns([1.1, 1.4, 1.2])
+    open_tasks = int((view["status"] != "Cerrada").sum()) if not view.empty else 0
+    closed_tasks = int((view["status"] == "Cerrada").sum()) if not view.empty else 0
+    waiting_tasks = int((view["status"] == "Terminada - espera cierre").sum()) if not view.empty else 0
+    alert_tasks = int(
+        view["Semáforo"].astype(str).str.contains("🔴|🟡", regex=True).sum()
+    ) if not view.empty else 0
 
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Abiertas", open_tasks)
+    m2.metric("Esperan cierre", waiting_tasks)
+    m3.metric("Con alerta", alert_tasks)
+    m4.metric("Cerradas", closed_tasks)
+
+    f1, f2, f3 = st.columns([1.1, 1.35, 1.55])
     task_status_filter = f1.selectbox(
-        "Filtrar por estado",
+        "Estado",
         [
             "Todos",
             "Pendiente",
@@ -2812,378 +2822,448 @@ elif page == "Tareas":
             "Terminada - espera cierre",
             "Cerrada",
         ],
-        key="tasks_status_filter",
+        key="tasks_status_filter_v27",
     )
-
     task_person_filter = f2.selectbox(
-        "Filtrar por responsable",
+        "Responsable",
         ["Todos", *people["name"].tolist()],
-        key="tasks_person_filter",
+        key="tasks_person_filter_v27",
     )
-
     search_task = f3.text_input(
-        "Buscar",
-        placeholder="Código o tarea",
-        key="tasks_search",
+        "Buscar tarea",
+        placeholder="Código, tarea u observación",
+        key="tasks_search_v27",
     )
 
     filtered = view.copy()
-
     if task_status_filter != "Todos":
         filtered = filtered[filtered["status"] == task_status_filter]
-
     if task_person_filter != "Todos":
         filtered = filtered[filtered["assignee"] == task_person_filter]
-
     if search_task.strip():
         needle = search_task.strip().lower()
-        mask = (
-            filtered["code"].astype(str).str.lower().str.contains(needle, regex=False)
-            | filtered["title"].astype(str).str.lower().str.contains(needle, regex=False)
-        )
-        filtered = filtered[mask]
+        searchable = (
+            filtered["code"].astype(str)
+            + " "
+            + filtered["title"].astype(str)
+            + " "
+            + filtered["observation"].fillna("").astype(str)
+        ).str.lower()
+        filtered = filtered[searchable.str.contains(needle, regex=False)]
 
-    display = filtered[
-        [
-            "Semáforo",
-            "code",
-            "title",
-            "sector",
-            "area",
-            "maintenance_type",
-            "assignee",
-            "priority",
-            "status",
-            "Inicio",
-            "Final",
-            "progress",
-            "Teórico %",
-            "observation",
-        ]
-    ].rename(
-        columns={
-            "code": "Código",
-            "title": "Tarea",
-            "sector": "Sector",
-            "area": "Área",
-            "maintenance_type": "Tipo mantenimiento",
-            "assignee": "Responsable",
-            "priority": "Prioridad",
-            "status": "Estado",
-            "progress": "Real %",
-            "observation": "Observación",
-        }
-    )
+    st.caption(f"Mostrando {len(filtered)} de {len(view)} tareas activas en la lista.")
 
-    st.dataframe(
-        display,
-        hide_index=True,
-        use_container_width=True,
-        height=520,
-    )
+    status_values = [
+        "Pendiente",
+        "Asignada",
+        "Aceptada",
+        "En ejecución",
+        "Terminada - espera cierre",
+        "Cerrada",
+    ]
 
-    section(
-        "Editar / cerrar acción",
-        "Seleccioná una tarea para corregir sus datos, actualizar el avance o realizar el cierre administrativo.",
-    )
-
-    if tasks.empty:
-        st.info("No existen tareas para editar.")
+    if filtered.empty:
+        st.info("No hay tareas que coincidan con los filtros seleccionados.")
     else:
-        task_options = tasks["id"].astype(int).tolist()
-        task_labels = {
-            int(row.id): f"{row.code} · {row.title}"
-            for _, row in tasks.iterrows()
-        }
-
-        selected_task_id = st.selectbox(
-            "Seleccionar tarea",
-            task_options,
-            format_func=lambda task_id: task_labels.get(int(task_id), str(task_id)),
-            key="edit_task_id",
-        )
-
-        selected = tasks.loc[tasks["id"] == int(selected_task_id)].iloc[0]
-
-        selected_start = pd.to_datetime(
-            selected.get("start_date"),
-            errors="coerce",
-        )
-        selected_due = pd.to_datetime(
-            selected.get("due_date"),
-            errors="coerce",
-        )
-
-        current_assignee_id = int(selected["assignee_id"])
-        person_ids = people["id"].astype(int).tolist()
-        person_names = dict(zip(people["id"].astype(int), people["name"]))
-
-        status_values = [
-            "Pendiente",
-            "Asignada",
-            "Aceptada",
-            "En ejecución",
-            "Terminada - espera cierre",
-            "Cerrada",
-        ]
-
-        current_sector = str(selected.get("sector") or "LAB")
-        current_area = str(selected.get("area") or "FER")
-        current_priority = str(selected.get("priority") or "Media")
-        current_status = str(selected.get("status") or "Pendiente")
-        current_maintenance = str(selected.get("maintenance_type") or "")
-
-        with st.form("edit_task_form"):
-            e1, e2 = st.columns([1.7, 1.0])
-
-            edit_title = e1.text_input(
-                "Tarea",
-                value=str(selected.get("title") or ""),
+        for _, task in filtered.iterrows():
+            task_id = int(task["id"])
+            current_status = str(task.get("status") or "Pendiente")
+            semaforo = str(task.get("Semáforo") or "⚪ Sin cronograma")
+            progress_value = int(round(float(task.get("progress") or 0)))
+            start_text = str(task.get("Inicio") or "—")
+            due_text = str(task.get("Final") or "—")
+            theoretical_value = task.get("Teórico %")
+            theoretical_text = (
+                "—"
+                if pd.isna(theoretical_value)
+                else f"{float(theoretical_value):.0f}%"
             )
 
-            edit_assignee = e2.selectbox(
-                "Responsable",
-                person_ids,
-                index=(
-                    person_ids.index(current_assignee_id)
-                    if current_assignee_id in person_ids
-                    else 0
-                ),
-                format_func=lambda person_id: person_names.get(int(person_id), str(person_id)),
-            )
+            with st.container(border=True):
+                title_col, status_col = st.columns([4.6, 1.4], vertical_alignment="center")
+                with title_col:
+                    st.markdown(f"#### {task['title']}")
+                    st.caption(f"{task['code']} · {semaforo}")
+                with status_col:
+                    st.markdown(f"**{current_status}**")
+                    st.caption(f"Prioridad: {task.get('priority') or '—'}")
 
-            edit_description = st.text_area(
-                "Descripción",
-                value=str(selected.get("description") or ""),
-                height=90,
-            )
+                i1, i2, i3, i4, i5 = st.columns([1.35, 1.0, 1.0, 1.0, 1.0])
+                i1.markdown(f"**Responsable**  \n{task.get('assignee') or '—'}")
+                i2.markdown(f"**Inicio**  \n{start_text}")
+                i3.markdown(f"**Final**  \n{due_text}")
+                i4.markdown(f"**Avance real**  \n{progress_value}%")
+                i5.markdown(f"**Teórico**  \n{theoretical_text}")
 
-            c1, c2, c3, c4 = st.columns(4)
+                st.progress(min(max(progress_value, 0), 100) / 100.0)
 
-            sector_values = list(SECTORES.values())
-            area_values = list(AREAS.values())
+                observation = str(task.get("observation") or "").strip()
+                if observation and observation not in ("—", "None"):
+                    st.caption("Observación: " + observation[:220])
 
-            edit_sector = c1.selectbox(
-                "Sector",
-                sector_values,
-                index=sector_values.index(current_sector) if current_sector in sector_values else 0,
-            )
-
-            edit_area = c2.selectbox(
-                "Área",
-                area_values,
-                index=area_values.index(current_area) if current_area in area_values else 0,
-            )
-
-            edit_priority = c3.selectbox(
-                "Prioridad",
-                PRIORIDADES,
-                index=PRIORIDADES.index(current_priority) if current_priority in PRIORIDADES else 2,
-            )
-
-            edit_status = c4.selectbox(
-                "Estado",
-                status_values,
-                index=status_values.index(current_status) if current_status in status_values else 0,
-            )
-
-            d1, d2, d3 = st.columns([1.0, 1.0, 1.1])
-
-            use_start = d1.checkbox(
-                "Definir fecha de inicio",
-                value=not pd.isna(selected_start),
-            )
-            edit_start = d1.date_input(
-                "Inicio",
-                value=(selected_start.date() if not pd.isna(selected_start) else date.today()),
-                format="DD/MM/YYYY",
-                disabled=not use_start,
-            )
-
-            use_due = d2.checkbox(
-                "Definir fecha final",
-                value=not pd.isna(selected_due),
-            )
-            edit_due = d2.date_input(
-                "Final",
-                value=(selected_due.date() if not pd.isna(selected_due) else date.today()),
-                format="DD/MM/YYYY",
-                disabled=not use_due,
-            )
-
-            edit_progress = d3.slider(
-                "Avance real (%)",
-                0,
-                100,
-                int(float(selected.get("progress") or 0)),
-            )
-
-            maintenance_options = ["—", *TIPOS_MANT]
-            edit_maintenance = st.selectbox(
-                "Tipo de mantenimiento",
-                maintenance_options,
-                index=(
-                    maintenance_options.index(current_maintenance)
-                    if current_maintenance in maintenance_options
-                    else 0
-                ),
-                disabled=(edit_sector != "MANT"),
-            )
-
-            edit_observation = st.text_area(
-                "Observación / evidencia de cierre",
-                value=str(selected.get("observation") or ""),
-                height=110,
-                help="Al cerrar una acción, conviene dejar aquí el resultado, evidencia o comentario final.",
-            )
-
-            st.caption(
-                f"Estado actual: {current_status} · Responsable actual: {selected.get('assignee', '—')} · "
-                f"Avance actual: {float(selected.get('progress') or 0):.0f}%"
-            )
-
-            b1, b2 = st.columns(2)
-            save_changes = b1.form_submit_button(
-                "Guardar cambios",
-                type="primary",
-                use_container_width=True,
-            )
-            close_action = b2.form_submit_button(
-                "Cerrar acción ahora",
-                use_container_width=True,
-            )
-
-        if save_changes or close_action:
-            if not edit_title.strip():
-                st.error("La tarea no puede quedar sin nombre.")
-            elif use_start and use_due and edit_due < edit_start:
-                st.error("La fecha final no puede ser anterior a la fecha de inicio.")
-            else:
-                new_status = "Cerrada" if close_action else edit_status
-                new_progress = 100 if close_action or new_status == "Cerrada" else int(edit_progress)
-                start_value = edit_start.isoformat() if use_start else None
-                due_value = edit_due.isoformat() if use_due else None
-                maintenance_value = (
-                    None
-                    if edit_sector != "MANT" or edit_maintenance == "—"
-                    else edit_maintenance
-                )
-
-                was_closed = current_status == "Cerrada"
-                will_be_closed = new_status == "Cerrada"
-                closed_at = selected.get("closed_at")
-                finished_at = selected.get("finished_at")
-
-                if will_be_closed:
-                    closed_at = closed_at or datetime.now().isoformat()
-                    finished_at = finished_at or datetime.now().isoformat()
-                elif was_closed and not will_be_closed:
-                    closed_at = None
-
-                c.execute(
-                    """
-                    UPDATE tasks
-                    SET
-                        title = ?,
-                        description = ?,
-                        sector = ?,
-                        area = ?,
-                        maintenance_type = ?,
-                        assignee_id = ?,
-                        priority = ?,
-                        start_date = ?,
-                        due_date = ?,
-                        status = ?,
-                        progress = ?,
-                        observation = ?,
-                        finished_at = ?,
-                        closed_at = ?
-                    WHERE id = ?
-                    """,
-                    (
-                        edit_title.strip(),
-                        edit_description.strip(),
-                        edit_sector,
-                        edit_area,
-                        maintenance_value,
-                        int(edit_assignee),
-                        edit_priority,
-                        start_value,
-                        due_value,
-                        new_status,
-                        float(new_progress),
-                        edit_observation.strip(),
-                        finished_at,
-                        closed_at,
-                        int(selected_task_id),
+                a1, a2, a3, a4 = st.columns([2.2, 1.0, 1.0, 1.15], vertical_alignment="bottom")
+                selected_status = a1.selectbox(
+                    "Modificar estado",
+                    status_values,
+                    index=(
+                        status_values.index(current_status)
+                        if current_status in status_values
+                        else 0
                     ),
+                    key=f"quick_status_{task_id}",
                 )
-                c.commit()
+                change_status = a1.button(
+                    "Actualizar estado",
+                    key=f"update_status_{task_id}",
+                    use_container_width=True,
+                )
+                close_now = a2.button(
+                    "✅ Cerrar",
+                    key=f"quick_close_{task_id}",
+                    use_container_width=True,
+                    disabled=(current_status == "Cerrada"),
+                )
+                edit_now = a3.button(
+                    "✏️ Editar",
+                    key=f"quick_edit_{task_id}",
+                    use_container_width=True,
+                )
+                archive_now = a4.button(
+                    "🗑️ Quitar de lista",
+                    key=f"quick_archive_{task_id}",
+                    use_container_width=True,
+                )
 
-                if will_be_closed and not was_closed:
+                if change_status:
+                    new_status = selected_status
+                    new_progress = 100 if new_status == "Cerrada" else float(task.get("progress") or 0)
+                    was_closed = current_status == "Cerrada"
+                    now_closed = new_status == "Cerrada"
+                    closed_at = task.get("closed_at")
+                    finished_at = task.get("finished_at")
+
+                    if now_closed:
+                        closed_at = closed_at or datetime.now().isoformat()
+                        finished_at = finished_at or datetime.now().isoformat()
+                    elif was_closed:
+                        closed_at = None
+
+                    c.execute(
+                        """
+                        UPDATE tasks
+                        SET status = ?, progress = ?, finished_at = ?, closed_at = ?
+                        WHERE id = ?
+                        """,
+                        (new_status, new_progress, finished_at, closed_at, task_id),
+                    )
+                    c.commit()
                     log_event(
                         c,
-                        int(selected_task_id),
+                        task_id,
+                        "status_changed",
+                        "Administrador",
+                        f"Estado modificado de {current_status} a {new_status}.",
+                    )
+                    st.success(f"Estado actualizado: {new_status}")
+                    st.rerun()
+
+                if close_now:
+                    now = datetime.now().isoformat()
+                    c.execute(
+                        """
+                        UPDATE tasks
+                        SET status = 'Cerrada', progress = 100,
+                            finished_at = COALESCE(finished_at, ?),
+                            closed_at = COALESCE(closed_at, ?)
+                        WHERE id = ?
+                        """,
+                        (now, now, task_id),
+                    )
+                    c.commit()
+                    log_event(
+                        c,
+                        task_id,
                         "closed",
                         "Administrador",
-                        "Cierre realizado desde edición de tareas. "
-                        + (edit_observation.strip() or "Sin observación final."),
+                        "Cierre rápido realizado desde la lista de tareas.",
                     )
 
-                    person_row = people.loc[people["id"] == int(edit_assignee)]
+                    person_row = people.loc[people["id"] == int(task["assignee_id"])]
                     if not person_row.empty:
                         person_mail = {
                             "name": str(person_row.iloc[0]["name"]),
                             "email": str(person_row.iloc[0]["email"]),
                         }
-                        closed_task = dict(selected)
-                        closed_task.update(
-                            {
-                                "title": edit_title.strip(),
-                                "status": "Cerrada",
-                                "progress": 100,
-                                "observation": edit_observation.strip(),
-                                "due_date": due_value,
-                            }
-                        )
-                        mail_ok, mail_detail = send_closed_email(
-                            closed_task,
-                            person_mail,
-                            BASE_DIR,
-                        )
+                        closed_task = dict(task)
+                        closed_task.update({"status": "Cerrada", "progress": 100})
+                        mail_ok, mail_detail = send_closed_email(closed_task, person_mail, BASE_DIR)
                         log_email(
                             c,
-                            int(selected_task_id),
+                            task_id,
                             person_mail["email"],
                             "closed",
-                            f"Tarea cerrada · {selected.get('code', '')}",
+                            f"Tarea cerrada · {task.get('code', '')}",
                             mail_ok,
                             mail_detail,
                         )
+                    st.success("Tarea cerrada correctamente.")
+                    st.rerun()
 
-                elif was_closed and not will_be_closed:
-                    log_event(
-                        c,
-                        int(selected_task_id),
-                        "reopened",
-                        "Administrador",
-                        "Tarea reabierta desde edición de tareas.",
-                    )
-                else:
-                    log_event(
-                        c,
-                        int(selected_task_id),
-                        "edited",
-                        "Administrador",
-                        f"Datos actualizados. Estado: {new_status}. Avance: {new_progress}%.",
-                    )
+                if edit_now:
+                    st.session_state["edit_task_id_v27"] = task_id
+                    st.rerun()
 
-                st.success(
-                    "Acción cerrada correctamente."
-                    if will_be_closed
-                    else "Cambios guardados correctamente."
+                if archive_now:
+                    st.session_state["archive_task_id_v27"] = task_id
+                    st.rerun()
+
+                if st.session_state.get("archive_task_id_v27") == task_id:
+                    st.warning(
+                        "Esta acción desaparecerá de Tablero, Tareas y Gantt. "
+                        "El historial se conservará y podrá restaurarse."
+                    )
+                    q1, q2 = st.columns(2)
+                    if q1.button(
+                        "Confirmar quitar de la lista",
+                        key=f"confirm_archive_{task_id}",
+                        type="primary",
+                        use_container_width=True,
+                    ):
+                        c.execute(
+                            "UPDATE tasks SET archived = 1 WHERE id = ?",
+                            (task_id,),
+                        )
+                        c.commit()
+                        log_event(
+                            c,
+                            task_id,
+                            "archived",
+                            "Administrador",
+                            "Tarea quitada de las listas operativas.",
+                        )
+                        st.session_state.pop("archive_task_id_v27", None)
+                        if st.session_state.get("edit_task_id_v27") == task_id:
+                            st.session_state.pop("edit_task_id_v27", None)
+                        st.rerun()
+                    if q2.button(
+                        "Cancelar",
+                        key=f"cancel_archive_{task_id}",
+                        use_container_width=True,
+                    ):
+                        st.session_state.pop("archive_task_id_v27", None)
+                        st.rerun()
+
+    # --------------------------------------------------------
+    # EDICIÓN DETALLADA DE LA TAREA SELECCIONADA
+    # --------------------------------------------------------
+    selected_task_id = st.session_state.get("edit_task_id_v27")
+    if selected_task_id is not None:
+        selected_rows = tasks.loc[tasks["id"] == int(selected_task_id)]
+        if not selected_rows.empty:
+            selected = selected_rows.iloc[0]
+
+            st.divider()
+            section(
+                "Editar tarea",
+                f"{selected['code']} · modificación detallada",
+            )
+
+            selected_start = pd.to_datetime(selected.get("start_date"), errors="coerce")
+            selected_due = pd.to_datetime(selected.get("due_date"), errors="coerce")
+            current_assignee_id = int(selected["assignee_id"])
+            person_ids = people["id"].astype(int).tolist()
+            person_names = dict(zip(people["id"].astype(int), people["name"]))
+            current_sector = str(selected.get("sector") or "LAB")
+            current_area = str(selected.get("area") or "FER")
+            current_priority = str(selected.get("priority") or "Media")
+            current_status = str(selected.get("status") or "Pendiente")
+            current_maintenance = str(selected.get("maintenance_type") or "")
+
+            with st.form(f"edit_task_form_v27_{int(selected_task_id)}"):
+                e1, e2 = st.columns([1.7, 1.0])
+                edit_title = e1.text_input("Tarea", value=str(selected.get("title") or ""))
+                edit_assignee = e2.selectbox(
+                    "Responsable",
+                    person_ids,
+                    index=(person_ids.index(current_assignee_id) if current_assignee_id in person_ids else 0),
+                    format_func=lambda person_id: person_names.get(int(person_id), str(person_id)),
                 )
+                edit_description = st.text_area(
+                    "Descripción",
+                    value=str(selected.get("description") or ""),
+                    height=90,
+                )
+
+                c1, c2, c3, c4 = st.columns(4)
+                sector_values = list(SECTORES.values())
+                area_values = list(AREAS.values())
+                edit_sector = c1.selectbox(
+                    "Sector", sector_values,
+                    index=sector_values.index(current_sector) if current_sector in sector_values else 0,
+                )
+                edit_area = c2.selectbox(
+                    "Área", area_values,
+                    index=area_values.index(current_area) if current_area in area_values else 0,
+                )
+                edit_priority = c3.selectbox(
+                    "Prioridad", PRIORIDADES,
+                    index=PRIORIDADES.index(current_priority) if current_priority in PRIORIDADES else 2,
+                )
+                edit_status = c4.selectbox(
+                    "Estado", status_values,
+                    index=status_values.index(current_status) if current_status in status_values else 0,
+                )
+
+                d1, d2, d3 = st.columns([1.0, 1.0, 1.1])
+                use_start = d1.checkbox("Definir fecha de inicio", value=not pd.isna(selected_start))
+                edit_start = d1.date_input(
+                    "Inicio",
+                    value=(selected_start.date() if not pd.isna(selected_start) else date.today()),
+                    format="DD/MM/YYYY",
+                    disabled=not use_start,
+                )
+                use_due = d2.checkbox("Definir fecha final", value=not pd.isna(selected_due))
+                edit_due = d2.date_input(
+                    "Final",
+                    value=(selected_due.date() if not pd.isna(selected_due) else date.today()),
+                    format="DD/MM/YYYY",
+                    disabled=not use_due,
+                )
+                edit_progress = d3.slider(
+                    "Avance real (%)",
+                    0, 100,
+                    int(float(selected.get("progress") or 0)),
+                )
+
+                maintenance_options = ["—", *TIPOS_MANT]
+                edit_maintenance = st.selectbox(
+                    "Tipo de mantenimiento",
+                    maintenance_options,
+                    index=(maintenance_options.index(current_maintenance) if current_maintenance in maintenance_options else 0),
+                    disabled=(edit_sector != "MANT"),
+                )
+                edit_observation = st.text_area(
+                    "Observación / evidencia de cierre",
+                    value=str(selected.get("observation") or ""),
+                    height=110,
+                )
+
+                b1, b2, b3 = st.columns(3)
+                save_changes = b1.form_submit_button(
+                    "Guardar cambios", type="primary", use_container_width=True
+                )
+                close_action = b2.form_submit_button(
+                    "Cerrar acción", use_container_width=True
+                )
+                cancel_edit = b3.form_submit_button(
+                    "Cancelar edición", use_container_width=True
+                )
+
+            if cancel_edit:
+                st.session_state.pop("edit_task_id_v27", None)
                 st.rerun()
+
+            if save_changes or close_action:
+                if not edit_title.strip():
+                    st.error("La tarea no puede quedar sin nombre.")
+                elif use_start and use_due and edit_due < edit_start:
+                    st.error("La fecha final no puede ser anterior a la fecha de inicio.")
+                else:
+                    new_status = "Cerrada" if close_action else edit_status
+                    new_progress = 100 if close_action or new_status == "Cerrada" else int(edit_progress)
+                    start_value = edit_start.isoformat() if use_start else None
+                    due_value = edit_due.isoformat() if use_due else None
+                    maintenance_value = (
+                        None
+                        if edit_sector != "MANT" or edit_maintenance == "—"
+                        else edit_maintenance
+                    )
+                    was_closed = current_status == "Cerrada"
+                    will_be_closed = new_status == "Cerrada"
+                    closed_at = selected.get("closed_at")
+                    finished_at = selected.get("finished_at")
+                    if will_be_closed:
+                        closed_at = closed_at or datetime.now().isoformat()
+                        finished_at = finished_at or datetime.now().isoformat()
+                    elif was_closed:
+                        closed_at = None
+
+                    c.execute(
+                        """
+                        UPDATE tasks SET
+                            title = ?, description = ?, sector = ?, area = ?,
+                            maintenance_type = ?, assignee_id = ?, priority = ?,
+                            start_date = ?, due_date = ?, status = ?, progress = ?,
+                            observation = ?, finished_at = ?, closed_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            edit_title.strip(), edit_description.strip(), edit_sector,
+                            edit_area, maintenance_value, int(edit_assignee), edit_priority,
+                            start_value, due_value, new_status, float(new_progress),
+                            edit_observation.strip(), finished_at, closed_at,
+                            int(selected_task_id),
+                        ),
+                    )
+                    c.commit()
+                    log_event(
+                        c,
+                        int(selected_task_id),
+                        "closed" if will_be_closed else "edited",
+                        "Administrador",
+                        (
+                            "Cierre administrativo realizado."
+                            if will_be_closed
+                            else f"Datos actualizados. Estado: {new_status}. Avance: {new_progress}%."
+                        ),
+                    )
+                    st.session_state.pop("edit_task_id_v27", None)
+                    st.success("Cambios guardados correctamente.")
+                    st.rerun()
+
+    # --------------------------------------------------------
+    # TAREAS QUITADAS DE LA LISTA / ARCHIVADAS
+    # --------------------------------------------------------
+    with st.expander("Tareas quitadas de la lista · restaurar", expanded=False):
+        archived = pd.read_sql_query(
+            """
+            SELECT t.id, t.code, t.title, t.status, t.progress,
+                   t.assignee_id, p.name AS assignee
+            FROM tasks t
+            JOIN people p ON p.id = t.assignee_id
+            WHERE COALESCE(t.archived, 0) = 1
+            ORDER BY t.id DESC
+            """,
+            c,
+        )
+        if archived.empty:
+            st.caption("No hay tareas quitadas de la lista.")
+        else:
+            for _, archived_task in archived.iterrows():
+                r1, r2 = st.columns([5.0, 1.2], vertical_alignment="center")
+                r1.write(
+                    f"**{archived_task['code']} · {archived_task['title']}**  \n"
+                    f"{archived_task['assignee']} · {archived_task['status']} · "
+                    f"{float(archived_task['progress'] or 0):.0f}%"
+                )
+                if r2.button(
+                    "Restaurar",
+                    key=f"restore_task_{int(archived_task['id'])}",
+                    use_container_width=True,
+                ):
+                    c.execute(
+                        "UPDATE tasks SET archived = 0 WHERE id = ?",
+                        (int(archived_task["id"]),),
+                    )
+                    c.commit()
+                    log_event(
+                        c,
+                        int(archived_task["id"]),
+                        "restored",
+                        "Administrador",
+                        "Tarea restaurada a las listas operativas.",
+                    )
+                    st.rerun()
 
 
 # ============================================================
