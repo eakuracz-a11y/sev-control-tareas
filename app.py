@@ -23,7 +23,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.4"
+APP_VERSION = "V2.6"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -284,39 +284,53 @@ button[kind="primary"] {{
 
 def render_header():
 
-    logo_col, text_col = st.columns(
-        [1.0, 5.5],
+    logo_col, title_col, version_col = st.columns(
+        [1.25, 5.4, 1.35],
         vertical_alignment="center",
     )
 
     with logo_col:
-
         if LOGO.exists():
-
             st.image(
                 str(LOGO),
-                width=175,
+                width=145,
             )
-
         else:
+            st.markdown("### Sevion")
 
-            st.subheader("Sevion")
-
-    with text_col:
-
-        st.caption(
-            "GESTIÓN OPERACIONAL"
+    with title_col:
+        st.markdown(
+            """
+            <div style="padding-top:0.15rem;">
+                <div style="font-size:0.72rem;letter-spacing:0.13em;font-weight:700;color:#7B8D84;margin-bottom:0.12rem;">
+                    GESTIÓN OPERACIONAL
+                </div>
+                <div style="font-size:2.20rem;line-height:1.05;font-weight:750;color:#183D2D;margin:0;">
+                    Control de Tareas
+                </div>
+                <div style="font-size:0.82rem;color:#7B8D84;margin-top:0.30rem;">
+                    Asignación · aceptación · ejecución · cumplimiento
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        st.title(
-            "Control de Tareas"
+    with version_col:
+        st.markdown(
+            f"""
+            <div style="text-align:right;padding-top:0.35rem;">
+                <span style="display:inline-block;border:1px solid #DDE5DF;background:#FFFFFF;border-radius:999px;
+                padding:0.35rem 0.70rem;font-size:0.78rem;font-weight:700;color:#19734A;">{APP_VERSION}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        st.caption(
-            f"{APP_VERSION} · planificación, ejecución y cumplimiento"
-        )
-
-    st.divider()
+    st.markdown(
+        '<div style="height:1px;background:#DDE5DF;margin:0.85rem 0 1.15rem 0;"></div>',
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================
@@ -2106,14 +2120,138 @@ if page == "Tablero":
         requested_month,
     )
 
+    # --------------------------------------------------------
+    # CUMPLIMIENTO POR RESPONSABLE · V2.5
+    # --------------------------------------------------------
     section(
-        "Avance real vs. teórico",
-        "Comparación contra el avance esperado por fecha",
+        "Cumplimiento por responsable",
+        "Lectura rápida del desempeño de cada persona en las tareas filtradas",
     )
 
-    progress_chart(
-        view
-    )
+    if view.empty:
+        st.info("No hay tareas para calcular cumplimiento con los filtros seleccionados.")
+    else:
+        person_rows = []
+
+        for person_name, person_tasks in view.groupby("assignee", dropna=False):
+            total = len(person_tasks)
+            closed = int((person_tasks["status"] == "Cerrada").sum())
+            waiting = int((person_tasks["status"] == "Terminada - espera cierre").sum())
+            on_time = int(
+                person_tasks["Semáforo"].astype(str).str.contains(
+                    "🟢 En término|🟢 Cerrada", regex=True
+                ).sum()
+            )
+            attention_n = int(person_tasks["Semáforo"].astype(str).str.contains("🟡").sum())
+            late_n = int(person_tasks["Semáforo"].astype(str).str.contains("🔴").sum())
+            no_schedule = int(person_tasks["Semáforo"].astype(str).str.contains("⚪").sum())
+
+            evaluable = max(total - no_schedule, 0)
+            compliance = (100.0 * on_time / evaluable) if evaluable else 0.0
+            avg_real = float(person_tasks["progress"].fillna(0).mean()) if total else 0.0
+            theoretical_values = pd.to_numeric(person_tasks["Teórico %"], errors="coerce").dropna()
+            avg_theoretical = float(theoretical_values.mean()) if not theoretical_values.empty else None
+
+            if late_n > 0:
+                status_label = "🔴 Requiere acción"
+            elif attention_n > 0:
+                status_label = "🟡 Atención"
+            elif waiting > 0:
+                status_label = "🔵 Espera cierre"
+            elif evaluable > 0:
+                status_label = "🟢 En término"
+            else:
+                status_label = "⚪ Sin cronograma"
+
+            person_rows.append({
+                "Responsable": str(person_name),
+                "Estado": status_label,
+                "Tareas": total,
+                "Cerradas": closed,
+                "En término": on_time,
+                "Atención": attention_n,
+                "Atrasadas": late_n,
+                "Espera cierre": waiting,
+                "Cumplimiento %": round(compliance, 1),
+                "Avance real %": round(avg_real, 1),
+                "Avance teórico %": (round(avg_theoretical, 1) if avg_theoretical is not None else None),
+            })
+
+        person_summary = pd.DataFrame(person_rows).sort_values(
+            ["Cumplimiento %", "Atrasadas", "Atención"],
+            ascending=[False, True, True],
+        )
+
+        if not person_summary.empty:
+            top_cols = st.columns(min(3, len(person_summary)))
+            for idx, (_, person_row) in enumerate(person_summary.head(3).iterrows()):
+                with top_cols[idx]:
+                    st.metric(
+                        person_row["Responsable"],
+                        f"{person_row['Cumplimiento %']:.0f}%",
+                        delta=(
+                            f"{int(person_row['Atrasadas'])} atrasada(s)"
+                            if person_row["Atrasadas"] > 0
+                            else person_row["Estado"]
+                        ),
+                    )
+
+            chart_people = person_summary.copy()
+            fig_people = px.bar(
+                chart_people.sort_values("Cumplimiento %"),
+                x="Cumplimiento %",
+                y="Responsable",
+                orientation="h",
+                text="Cumplimiento %",
+                hover_data={
+                    "Tareas": True,
+                    "En término": True,
+                    "Atención": True,
+                    "Atrasadas": True,
+                    "Avance real %": True,
+                    "Avance teórico %": True,
+                },
+            )
+            fig_people.update_traces(
+                marker_color=BRAND_GREEN,
+                texttemplate="%{text:.0f}%",
+                textposition="outside",
+                cliponaxis=False,
+            )
+            fig_people.update_layout(
+                height=max(280, 54 * len(chart_people) + 90),
+                margin=dict(l=10, r=45, t=5, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="#FFFFFF",
+                showlegend=False,
+                xaxis=dict(
+                    title="Cumplimiento (%)",
+                    range=[0, 108],
+                    gridcolor="#E8ECE9",
+                ),
+                yaxis=dict(title=None),
+                font=dict(color=BRAND_DARK),
+            )
+            st.plotly_chart(fig_people, use_container_width=True)
+
+            with st.expander("Ver detalle por responsable", expanded=False):
+                st.dataframe(
+                    person_summary,
+                    hide_index=True,
+                    use_container_width=True,
+                    column_config={
+                        "Cumplimiento %": st.column_config.ProgressColumn(
+                            "Cumplimiento %", min_value=0, max_value=100, format="%.0f%%"
+                        ),
+                        "Avance real %": st.column_config.ProgressColumn(
+                            "Avance real %", min_value=0, max_value=100, format="%.0f%%"
+                        ),
+                    },
+                )
+
+    with st.expander("Avance real vs. teórico por tarea", expanded=False):
+        st.caption("Comparación individual contra el avance esperado por fecha")
+        progress_chart(view)
 
     section(
         "Cronograma de cumplimiento · Gantt",
@@ -2628,66 +2766,84 @@ elif page == "Tareas":
 
     section(
         "Tareas",
-        "Listado general de seguimiento",
+        "Listado general, edición y cierre administrativo",
     )
 
-    view = (
-        tasks.copy()
+    view = tasks.copy()
+
+    view["Teórico %"] = view.apply(
+        theoretical,
+        axis=1,
     )
 
-    view[
-        "Teórico %"
-    ] = (
-        view.apply(
-            theoretical,
-            axis=1,
-        )
+    view["Semáforo"] = view.apply(
+        traffic_light,
+        axis=1,
     )
 
-    view[
-        "Semáforo"
-    ] = (
-        view.apply(
-            traffic_light,
-            axis=1,
-        )
-    )
-
-    view[
-        "Inicio"
-    ] = (
+    view["Inicio"] = (
         pd.to_datetime(
-            view[
-                "start_date"
-            ],
+            view["start_date"],
             errors="coerce",
         )
-        .dt.strftime(
-            "%d/%m/%Y"
-        )
-        .fillna(
-            "—"
-        )
+        .dt.strftime("%d/%m/%Y")
+        .fillna("—")
     )
 
-    view[
-        "Final"
-    ] = (
+    view["Final"] = (
         pd.to_datetime(
-            view[
-                "due_date"
-            ],
+            view["due_date"],
             errors="coerce",
         )
-        .dt.strftime(
-            "%d/%m/%Y"
-        )
-        .fillna(
-            "—"
-        )
+        .dt.strftime("%d/%m/%Y")
+        .fillna("—")
     )
 
-    display = view[
+    f1, f2, f3 = st.columns([1.1, 1.4, 1.2])
+
+    task_status_filter = f1.selectbox(
+        "Filtrar por estado",
+        [
+            "Todos",
+            "Pendiente",
+            "Asignada",
+            "Aceptada",
+            "En ejecución",
+            "Terminada - espera cierre",
+            "Cerrada",
+        ],
+        key="tasks_status_filter",
+    )
+
+    task_person_filter = f2.selectbox(
+        "Filtrar por responsable",
+        ["Todos", *people["name"].tolist()],
+        key="tasks_person_filter",
+    )
+
+    search_task = f3.text_input(
+        "Buscar",
+        placeholder="Código o tarea",
+        key="tasks_search",
+    )
+
+    filtered = view.copy()
+
+    if task_status_filter != "Todos":
+        filtered = filtered[filtered["status"] == task_status_filter]
+
+    if task_person_filter != "Todos":
+        filtered = filtered[filtered["assignee"] == task_person_filter]
+
+    if search_task.strip():
+        needle = search_task.strip().lower()
+        mask = (
+            filtered["code"].astype(str).str.lower().str.contains(needle, regex=False)
+            | filtered["title"].astype(str).str.lower().str.contains(needle, regex=False)
+        )
+        filtered = filtered[mask]
+
+    display = filtered[
         [
             "Semáforo",
             "code",
@@ -2723,8 +2879,311 @@ elif page == "Tareas":
         display,
         hide_index=True,
         use_container_width=True,
-        height=620,
+        height=520,
     )
+
+    section(
+        "Editar / cerrar acción",
+        "Seleccioná una tarea para corregir sus datos, actualizar el avance o realizar el cierre administrativo.",
+    )
+
+    if tasks.empty:
+        st.info("No existen tareas para editar.")
+    else:
+        task_options = tasks["id"].astype(int).tolist()
+        task_labels = {
+            int(row.id): f"{row.code} · {row.title}"
+            for _, row in tasks.iterrows()
+        }
+
+        selected_task_id = st.selectbox(
+            "Seleccionar tarea",
+            task_options,
+            format_func=lambda task_id: task_labels.get(int(task_id), str(task_id)),
+            key="edit_task_id",
+        )
+
+        selected = tasks.loc[tasks["id"] == int(selected_task_id)].iloc[0]
+
+        selected_start = pd.to_datetime(
+            selected.get("start_date"),
+            errors="coerce",
+        )
+        selected_due = pd.to_datetime(
+            selected.get("due_date"),
+            errors="coerce",
+        )
+
+        current_assignee_id = int(selected["assignee_id"])
+        person_ids = people["id"].astype(int).tolist()
+        person_names = dict(zip(people["id"].astype(int), people["name"]))
+
+        status_values = [
+            "Pendiente",
+            "Asignada",
+            "Aceptada",
+            "En ejecución",
+            "Terminada - espera cierre",
+            "Cerrada",
+        ]
+
+        current_sector = str(selected.get("sector") or "LAB")
+        current_area = str(selected.get("area") or "FER")
+        current_priority = str(selected.get("priority") or "Media")
+        current_status = str(selected.get("status") or "Pendiente")
+        current_maintenance = str(selected.get("maintenance_type") or "")
+
+        with st.form("edit_task_form"):
+            e1, e2 = st.columns([1.7, 1.0])
+
+            edit_title = e1.text_input(
+                "Tarea",
+                value=str(selected.get("title") or ""),
+            )
+
+            edit_assignee = e2.selectbox(
+                "Responsable",
+                person_ids,
+                index=(
+                    person_ids.index(current_assignee_id)
+                    if current_assignee_id in person_ids
+                    else 0
+                ),
+                format_func=lambda person_id: person_names.get(int(person_id), str(person_id)),
+            )
+
+            edit_description = st.text_area(
+                "Descripción",
+                value=str(selected.get("description") or ""),
+                height=90,
+            )
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            sector_values = list(SECTORES.values())
+            area_values = list(AREAS.values())
+
+            edit_sector = c1.selectbox(
+                "Sector",
+                sector_values,
+                index=sector_values.index(current_sector) if current_sector in sector_values else 0,
+            )
+
+            edit_area = c2.selectbox(
+                "Área",
+                area_values,
+                index=area_values.index(current_area) if current_area in area_values else 0,
+            )
+
+            edit_priority = c3.selectbox(
+                "Prioridad",
+                PRIORIDADES,
+                index=PRIORIDADES.index(current_priority) if current_priority in PRIORIDADES else 2,
+            )
+
+            edit_status = c4.selectbox(
+                "Estado",
+                status_values,
+                index=status_values.index(current_status) if current_status in status_values else 0,
+            )
+
+            d1, d2, d3 = st.columns([1.0, 1.0, 1.1])
+
+            use_start = d1.checkbox(
+                "Definir fecha de inicio",
+                value=not pd.isna(selected_start),
+            )
+            edit_start = d1.date_input(
+                "Inicio",
+                value=(selected_start.date() if not pd.isna(selected_start) else date.today()),
+                format="DD/MM/YYYY",
+                disabled=not use_start,
+            )
+
+            use_due = d2.checkbox(
+                "Definir fecha final",
+                value=not pd.isna(selected_due),
+            )
+            edit_due = d2.date_input(
+                "Final",
+                value=(selected_due.date() if not pd.isna(selected_due) else date.today()),
+                format="DD/MM/YYYY",
+                disabled=not use_due,
+            )
+
+            edit_progress = d3.slider(
+                "Avance real (%)",
+                0,
+                100,
+                int(float(selected.get("progress") or 0)),
+            )
+
+            maintenance_options = ["—", *TIPOS_MANT]
+            edit_maintenance = st.selectbox(
+                "Tipo de mantenimiento",
+                maintenance_options,
+                index=(
+                    maintenance_options.index(current_maintenance)
+                    if current_maintenance in maintenance_options
+                    else 0
+                ),
+                disabled=(edit_sector != "MANT"),
+            )
+
+            edit_observation = st.text_area(
+                "Observación / evidencia de cierre",
+                value=str(selected.get("observation") or ""),
+                height=110,
+                help="Al cerrar una acción, conviene dejar aquí el resultado, evidencia o comentario final.",
+            )
+
+            st.caption(
+                f"Estado actual: {current_status} · Responsable actual: {selected.get('assignee', '—')} · "
+                f"Avance actual: {float(selected.get('progress') or 0):.0f}%"
+            )
+
+            b1, b2 = st.columns(2)
+            save_changes = b1.form_submit_button(
+                "Guardar cambios",
+                type="primary",
+                use_container_width=True,
+            )
+            close_action = b2.form_submit_button(
+                "Cerrar acción ahora",
+                use_container_width=True,
+            )
+
+        if save_changes or close_action:
+            if not edit_title.strip():
+                st.error("La tarea no puede quedar sin nombre.")
+            elif use_start and use_due and edit_due < edit_start:
+                st.error("La fecha final no puede ser anterior a la fecha de inicio.")
+            else:
+                new_status = "Cerrada" if close_action else edit_status
+                new_progress = 100 if close_action or new_status == "Cerrada" else int(edit_progress)
+                start_value = edit_start.isoformat() if use_start else None
+                due_value = edit_due.isoformat() if use_due else None
+                maintenance_value = (
+                    None
+                    if edit_sector != "MANT" or edit_maintenance == "—"
+                    else edit_maintenance
+                )
+
+                was_closed = current_status == "Cerrada"
+                will_be_closed = new_status == "Cerrada"
+                closed_at = selected.get("closed_at")
+                finished_at = selected.get("finished_at")
+
+                if will_be_closed:
+                    closed_at = closed_at or datetime.now().isoformat()
+                    finished_at = finished_at or datetime.now().isoformat()
+                elif was_closed and not will_be_closed:
+                    closed_at = None
+
+                c.execute(
+                    """
+                    UPDATE tasks
+                    SET
+                        title = ?,
+                        description = ?,
+                        sector = ?,
+                        area = ?,
+                        maintenance_type = ?,
+                        assignee_id = ?,
+                        priority = ?,
+                        start_date = ?,
+                        due_date = ?,
+                        status = ?,
+                        progress = ?,
+                        observation = ?,
+                        finished_at = ?,
+                        closed_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        edit_title.strip(),
+                        edit_description.strip(),
+                        edit_sector,
+                        edit_area,
+                        maintenance_value,
+                        int(edit_assignee),
+                        edit_priority,
+                        start_value,
+                        due_value,
+                        new_status,
+                        float(new_progress),
+                        edit_observation.strip(),
+                        finished_at,
+                        closed_at,
+                        int(selected_task_id),
+                    ),
+                )
+                c.commit()
+
+                if will_be_closed and not was_closed:
+                    log_event(
+                        c,
+                        int(selected_task_id),
+                        "closed",
+                        "Administrador",
+                        "Cierre realizado desde edición de tareas. "
+                        + (edit_observation.strip() or "Sin observación final."),
+                    )
+
+                    person_row = people.loc[people["id"] == int(edit_assignee)]
+                    if not person_row.empty:
+                        person_mail = {
+                            "name": str(person_row.iloc[0]["name"]),
+                            "email": str(person_row.iloc[0]["email"]),
+                        }
+                        closed_task = dict(selected)
+                        closed_task.update(
+                            {
+                                "title": edit_title.strip(),
+                                "status": "Cerrada",
+                                "progress": 100,
+                                "observation": edit_observation.strip(),
+                                "due_date": due_value,
+                            }
+                        )
+                        mail_ok, mail_detail = send_closed_email(
+                            closed_task,
+                            person_mail,
+                            BASE_DIR,
+                        )
+                        log_email(
+                            c,
+                            int(selected_task_id),
+                            person_mail["email"],
+                            "closed",
+                            f"Tarea cerrada · {selected.get('code', '')}",
+                            mail_ok,
+                            mail_detail,
+                        )
+
+                elif was_closed and not will_be_closed:
+                    log_event(
+                        c,
+                        int(selected_task_id),
+                        "reopened",
+                        "Administrador",
+                        "Tarea reabierta desde edición de tareas.",
+                    )
+                else:
+                    log_event(
+                        c,
+                        int(selected_task_id),
+                        "edited",
+                        "Administrador",
+                        f"Datos actualizados. Estado: {new_status}. Avance: {new_progress}%.",
+                    )
+
+                st.success(
+                    "Acción cerrada correctamente."
+                    if will_be_closed
+                    else "Cambios guardados correctamente."
+                )
+                st.rerun()
 
 
 # ============================================================
