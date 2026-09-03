@@ -62,14 +62,43 @@ def _read_streamlit_secrets(base_dir: Path | None = None) -> dict[str, Any]:
         return {}
 
 
+def _read_runtime_streamlit_secrets() -> dict[str, Any]:
+    """Lee Secrets configurados desde Streamlit Community Cloud.
+
+    Streamlit puede no materializar físicamente .streamlit/secrets.toml en el
+    repositorio desplegado. Por eso esta función consulta st.secrets además
+    del archivo local y de las variables de entorno.
+    """
+    try:
+        import streamlit as st
+        data = dict(st.secrets)
+        merged = dict(data)
+        mail = data.get("mail", {}) if isinstance(data, dict) else {}
+        if isinstance(mail, dict):
+            merged.update(dict(mail))
+        return merged
+    except Exception:
+        return {}
+
+
 def get_mail_settings(base_dir: Path | None = None) -> MailSettings:
-    secrets_data = _read_streamlit_secrets(base_dir)
+    file_secrets = _read_streamlit_secrets(base_dir)
+    runtime_secrets = _read_runtime_streamlit_secrets()
+
+    # Orden de prioridad: variable de entorno > Streamlit Cloud > archivo local.
+    secrets_data = dict(file_secrets)
+    secrets_data.update(runtime_secrets)
 
     def value(env_key: str, secret_key: str, default: Any = "") -> Any:
         env = os.getenv(env_key)
         if env not in (None, ""):
             return env
-        return secrets_data.get(secret_key, default)
+        # Permite claves tanto minúsculas como mayúsculas en Secrets.
+        if secret_key in secrets_data:
+            return secrets_data.get(secret_key, default)
+        if env_key in secrets_data:
+            return secrets_data.get(env_key, default)
+        return default
 
     port_raw = value("SMTP_PORT", "smtp_port", 587)
     try:
@@ -161,6 +190,46 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: str = "",
         return False, f"{type(exc).__name__}: {exc}"
 
 
+def mail_configuration_report(base_dir: Path | None = None) -> dict[str, Any]:
+    settings = get_mail_settings(base_dir)
+    missing = []
+    if not settings.host:
+        missing.append("SMTP_HOST")
+    if not settings.sender_email:
+        missing.append("SMTP_SENDER_EMAIL")
+    if settings.username and not settings.password:
+        missing.append("SMTP_PASSWORD")
+    if not settings.admin_email:
+        missing.append("ADMIN_EMAIL")
+    if not settings.app_base_url:
+        missing.append("APP_BASE_URL")
+    return {
+        "configured": settings.configured,
+        "missing": missing,
+        "host": settings.host,
+        "port": settings.port,
+        "sender_email": settings.sender_email,
+        "admin_email": settings.admin_email,
+        "app_base_url": settings.app_base_url,
+        "use_ssl": settings.use_ssl,
+        "use_tls": settings.use_tls,
+    }
+
+
+def send_test_email(to_email: str, base_dir: Path | None = None) -> tuple[bool, str]:
+    body = """
+      <p>Este es un correo de prueba de <strong>SEV · Control de Tareas</strong>.</p>
+      <p>Si recibiste este mensaje, la configuración SMTP está funcionando correctamente.</p>
+    """
+    return send_email(
+        to_email,
+        "Prueba de correo · SEV Control de Tareas",
+        _layout("Prueba de configuración SMTP", body),
+        "Prueba de configuración SMTP del sistema SEV.",
+        base_dir,
+    )
+
+
 def send_assignment_email(task: dict[str, Any], person: dict[str, Any], base_dir: Path | None = None) -> tuple[bool, str]:
     url = build_task_url(str(task.get("token", "")), base_dir)
     body = f"""
@@ -219,4 +288,3 @@ def send_closed_email(task: dict[str, Any], person: dict[str, Any], base_dir: Pa
       <p>Estado final: <strong>Cerrada</strong>.</p>
     """
     return send_email(str(person.get("email", "")), f"Tarea cerrada · {task.get('code','')}", _layout("Tarea cerrada", body), "La tarea fue cerrada por administración.", base_dir)
-
