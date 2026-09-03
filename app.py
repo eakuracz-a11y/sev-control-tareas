@@ -23,7 +23,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.9"
+APP_VERSION = "V2.10"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -752,34 +752,66 @@ def next_code(
 # AVANCE TEÓRICO
 # ============================================================
 
+def _safe_date(value):
+    """Convierte fechas provenientes de SQLite/Pandas sin dejar pasar NaN/NaT."""
+
+    if value is None:
+        return None
+
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+
+    parsed = pd.to_datetime(
+        value,
+        errors="coerce",
+    )
+
+    if pd.isna(parsed):
+        return None
+
+    return parsed.date()
+
+
 def theoretical(
     row,
     reference=None,
 ):
 
     reference = (
-        reference
-        or date.today()
+        _safe_date(reference)
+        if reference is not None
+        else date.today()
     )
+
+    if reference is None:
+        reference = date.today()
 
     if row["status"] == "Cerrada":
 
         return 100.0
 
-    if (
-        not row["start_date"]
-        or not row["due_date"]
-    ):
+    start = _safe_date(
+        row["start_date"]
+    )
+
+    due = _safe_date(
+        row["due_date"]
+    )
+
+    if start is None or due is None:
 
         return None
 
-    start = pd.to_datetime(
-        row["start_date"]
-    ).date()
+    # Un registro histórico mal cargado no debe romper el tablero.
+    if due < start:
 
-    due = pd.to_datetime(
-        row["due_date"]
-    ).date()
+        return None
 
     if reference <= start:
 
@@ -842,12 +874,13 @@ def traffic_light(
         or 0
     )
 
-    if (
+    due = _safe_date(
         row["due_date"]
-        and date.today()
-        > pd.to_datetime(
-            row["due_date"]
-        ).date()
+    )
+
+    if (
+        due is not None
+        and date.today() > due
         and real < 100
     ):
 
