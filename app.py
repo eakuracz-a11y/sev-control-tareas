@@ -23,7 +23,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.8"
+APP_VERSION = "V2.9"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -40,6 +40,7 @@ LOGO = ASSETS_DIR / "sevion_logo.png"
 # ============================================================
 
 PEOPLE = [
+    ("Alejandro Kuracz", "alejandro.kuracz@sevion.com.br"),
     ("Camille Maia", "camille.maia@sevion.com.br"),
     ("Eduardo Matos", "eduardo.matos@sevion.com.br"),
     ("Bruno Maia", "bruno.maia@sevion.com.br"),
@@ -47,6 +48,9 @@ PEOPLE = [
     ("Flavia Guedes", "flavia.guedes@sevion.com.br"),
     ("Marcela Roque", "marcela.roque@sevion.com.br"),
 ]
+
+ADMIN_NAME = "Alejandro Kuracz"
+ADMIN_EMAIL = "alejandro.kuracz@sevion.com.br"
 
 
 # ============================================================
@@ -212,9 +216,10 @@ st.markdown(
 }}
 
 .block-container {{
-    padding-top: 2.2rem;
+    padding-top: 3.4rem;
     padding-bottom: 2.2rem;
     max-width: 1500px;
+    overflow: visible;
 }}
 
 [data-testid="stSidebar"] {{
@@ -305,7 +310,7 @@ def render_header():
                 <div style="font-size:0.72rem;letter-spacing:0.13em;font-weight:700;color:#7B8D84;margin-bottom:0.12rem;">
                     GESTIÓN OPERACIONAL
                 </div>
-                <div style="font-size:2.20rem;line-height:1.05;font-weight:750;color:#183D2D;margin:0;">
+                <div style="font-size:2.10rem;line-height:1.22;font-weight:750;color:#183D2D;margin:0;overflow:visible;padding:0.08rem 0;">
                     Control de Tareas
                 </div>
                 <div style="font-size:0.82rem;color:#7B8D84;margin-top:0.30rem;">
@@ -380,7 +385,8 @@ def init_db():
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            active INTEGER DEFAULT 1
+            active INTEGER DEFAULT 1,
+            role TEXT DEFAULT 'Responsable'
 
         );
 
@@ -466,6 +472,16 @@ def init_db():
         )
         c.commit()
 
+    people_columns = {
+        row["name"]
+        for row in c.execute("PRAGMA table_info(people)").fetchall()
+    }
+    if "role" not in people_columns:
+        c.execute(
+            "ALTER TABLE people ADD COLUMN role TEXT DEFAULT 'Responsable'"
+        )
+        c.commit()
+
     for name, email in PEOPLE:
 
         c.execute(
@@ -482,6 +498,15 @@ def init_db():
                 email,
             ),
         )
+
+    c.execute(
+        """
+        UPDATE people
+        SET name = ?, role = 'Administrador', active = 1
+        WHERE email = ?
+        """,
+        (ADMIN_NAME, ADMIN_EMAIL),
+    )
 
     c.commit()
 
@@ -1879,6 +1904,11 @@ page = st.sidebar.radio(
     ],
 )
 
+st.sidebar.divider()
+st.sidebar.caption("MODO ADMINISTRADOR")
+st.sidebar.markdown(f"**{ADMIN_NAME}**")
+st.sidebar.caption(ADMIN_EMAIL)
+
 
 c = con()
 
@@ -2539,12 +2569,22 @@ elif page == "Nueva tarea":
             )
         )
 
+        person_id_options = people["id"].astype(int).tolist()
+        admin_matches = people.loc[
+            people["email"].astype(str).str.lower() == ADMIN_EMAIL.lower(),
+            "id",
+        ].astype(int).tolist()
+        admin_default_id = admin_matches[0] if admin_matches else person_id_options[0]
+        admin_default_index = (
+            person_id_options.index(admin_default_id)
+            if admin_default_id in person_id_options else 0
+        )
+
         assignee_id = (
             col2.selectbox(
                 "Responsable",
-                people[
-                    "id"
-                ].tolist(),
+                person_id_options,
+                index=admin_default_index,
                 format_func=(
                     lambda person_id:
                     people.loc[
@@ -2947,7 +2987,15 @@ elif page == "Tareas":
                 RECURRENCIAS,
                 index=RECURRENCIAS.index(current_recurrence),
             )
-            recurrence_default = int(selected.get("recurrence_day") or 1)
+            recurrence_raw = pd.to_numeric(
+                selected.get("recurrence_day"),
+                errors="coerce",
+            )
+            recurrence_default = (
+                1
+                if pd.isna(recurrence_raw)
+                else int(recurrence_raw)
+            )
             recurrence_default = min(max(recurrence_default, 1), 31)
             edit_recurrence_day = p3.number_input(
                 "Día de recurrencia",
