@@ -100,6 +100,7 @@ def run_reminders(db_path: str | Path = DEFAULT_DB, today: date | None = None) -
         FROM tasks t
         JOIN people p ON p.id = t.assignee_id
         WHERE t.status != 'Cerrada'
+        AND COALESCE(t.archived, 0) = 0
         """
     ).fetchall()
 
