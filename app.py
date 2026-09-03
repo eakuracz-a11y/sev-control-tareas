@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.11"
+APP_VERSION = "V2.12"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -42,7 +42,7 @@ LOGO = ASSETS_DIR / "sevion_logo.png"
 # ============================================================
 
 PEOPLE = [
-    ("Alejandro Kuracz", "alejandro.kuracz@sevion.com.br"),
+    ("Alejandro Kuracz", "kuraczg7@gmail.com"),
     ("Camille Maia", "camille.maia@sevion.com.br"),
     ("Eduardo Matos", "eduardo.matos@sevion.com.br"),
     ("Bruno Maia", "bruno.maia@sevion.com.br"),
@@ -52,7 +52,8 @@ PEOPLE = [
 ]
 
 ADMIN_NAME = "Alejandro Kuracz"
-ADMIN_EMAIL = "alejandro.kuracz@sevion.com.br"
+ADMIN_EMAIL = "kuraczg7@gmail.com"
+LEGACY_ADMIN_EMAIL = "alejandro.kuracz@sevion.com.br"
 
 
 # ============================================================
@@ -155,6 +156,7 @@ AREAS = {
     "Biológico": "BIO",
     "Fertilizante": "FER",
     "Adjuvante": "ADJ",
+    "Servicios": "SER",
 }
 
 TIPOS_MANT = [
@@ -483,6 +485,34 @@ def init_db():
             "ALTER TABLE people ADD COLUMN role TEXT DEFAULT 'Responsable'"
         )
         c.commit()
+
+    # Migración V2.12: conservar el mismo usuario administrador y sus tareas
+    # al cambiar el correo desde Sevion a la cuenta Gmail personal.
+    old_admin = c.execute(
+        "SELECT id FROM people WHERE email = ?",
+        (LEGACY_ADMIN_EMAIL,),
+    ).fetchone()
+    new_admin = c.execute(
+        "SELECT id FROM people WHERE email = ?",
+        (ADMIN_EMAIL,),
+    ).fetchone()
+
+    if old_admin and not new_admin:
+        c.execute(
+            "UPDATE people SET email = ?, name = ?, role = 'Administrador', active = 1 WHERE id = ?",
+            (ADMIN_EMAIL, ADMIN_NAME, old_admin["id"]),
+        )
+    elif old_admin and new_admin and old_admin["id"] != new_admin["id"]:
+        # Si ambas cuentas existieran por una publicación intermedia, unificar
+        # las tareas en el usuario Gmail y retirar el registro duplicado.
+        c.execute(
+            "UPDATE tasks SET assignee_id = ? WHERE assignee_id = ?",
+            (new_admin["id"], old_admin["id"]),
+        )
+        c.execute(
+            "DELETE FROM people WHERE id = ?",
+            (old_admin["id"],),
+        )
 
     for name, email in PEOPLE:
 
