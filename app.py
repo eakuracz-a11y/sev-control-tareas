@@ -12,6 +12,8 @@ import streamlit as st
 from mailer import (
     build_task_url,
     get_mail_settings,
+    mail_configuration_report,
+    send_test_email,
     send_admin_event,
     send_assignment_email,
     send_closed_email,
@@ -23,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.10"
+APP_VERSION = "V2.11"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -1915,6 +1917,137 @@ if token:
     st.stop()
 
 
+
+# ============================================================
+# CALENDARIO OPERATIVO V2.11
+# ============================================================
+
+def _month_add(original_date, months):
+    month = original_date.month - 1 + months
+    year = original_date.year + month // 12
+    month = month % 12 + 1
+    day = min(original_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _recurrence_occurrences(task_row, month_start):
+    recurrence = str(task_row.get("recurrence") or "No")
+    if recurrence == "No":
+        return []
+    month_end = date(month_start.year, month_start.month, calendar.monthrange(month_start.year, month_start.month)[1])
+    base = _safe_date(task_row.get("due_date")) or _safe_date(task_row.get("start_date"))
+    occurrences = []
+    if recurrence == "Mensual":
+        raw_day = pd.to_numeric(task_row.get("recurrence_day"), errors="coerce")
+        day = int(raw_day) if not pd.isna(raw_day) else (base.day if base else 1)
+        day = min(max(day, 1), calendar.monthrange(month_start.year, month_start.month)[1])
+        candidate = date(month_start.year, month_start.month, day)
+        if base is None or candidate >= base:
+            occurrences.append(candidate)
+        return occurrences
+    if base is None:
+        return []
+    if recurrence == "Semanal":
+        candidate = base
+        if candidate < month_start:
+            delta = (month_start - candidate).days
+            candidate = candidate + timedelta(days=((delta + 6) // 7) * 7)
+        while candidate <= month_end:
+            if candidate >= month_start:
+                occurrences.append(candidate)
+            candidate += timedelta(days=7)
+        return occurrences
+    step_months = {"Trimestral": 3, "Semestral": 6, "Anual": 12}.get(recurrence)
+    if not step_months:
+        return []
+    candidate = base
+    guard = 0
+    while candidate < month_start and guard < 500:
+        candidate = _month_add(candidate, step_months)
+        guard += 1
+    if month_start <= candidate <= month_end:
+        occurrences.append(candidate)
+    return occurrences
+
+
+def calendar_events_for_month(tasks_df, month_start):
+    events = {}
+    month_end = date(month_start.year, month_start.month, calendar.monthrange(month_start.year, month_start.month)[1])
+    for _, row in tasks_df.iterrows():
+        due = _safe_date(row.get("due_date"))
+        if due and month_start <= due <= month_end:
+            events.setdefault(due, []).append({
+                "kind": "due",
+                "label": f"🔔 {row.get('code', '')} · {row.get('title', '')}",
+                "status": str(row.get("status") or ""),
+            })
+        for occurrence in _recurrence_occurrences(row, month_start):
+            label = f"🔁 {row.get('code', '')} · {row.get('title', '')}"
+            current = events.setdefault(occurrence, [])
+            if not any(item.get("label") == label for item in current):
+                current.append({"kind": "recurrence", "label": label, "status": str(row.get("status") or "")})
+    return events
+
+
+def render_month_calendar(tasks_df, month_start):
+    events = calendar_events_for_month(tasks_df, month_start)
+    headers = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    header_cols = st.columns(7)
+    for col, label in zip(header_cols, headers):
+        col.markdown(f"**{label}**")
+    for week in calendar.monthcalendar(month_start.year, month_start.month):
+        cols = st.columns(7)
+        for col, day_number in zip(cols, week):
+            with col:
+                if day_number == 0:
+                    st.markdown("&nbsp;", unsafe_allow_html=True)
+                    continue
+                current_day = date(month_start.year, month_start.month, day_number)
+                day_events = events.get(current_day, [])
+                with st.container(border=True):
+                    st.markdown(f"**{day_number}**")
+                    if not day_events:
+                        st.caption("—")
+                    else:
+                        for item in day_events[:4]:
+                            st.caption(item["label"][:52])
+                        if len(day_events) > 4:
+                            st.caption(f"+ {len(day_events) - 4} más")
+
+
+def due_alerts(tasks_df, reference=None, horizon_days=7):
+    reference = reference or date.today()
+    rows = []
+    for _, row in tasks_df.iterrows():
+        if str(row.get("status") or "") == "Cerrada":
+            continue
+        due = _safe_date(row.get("due_date"))
+        if due is None:
+            continue
+        days = (due - reference).days
+        if days <= horizon_days:
+            if days < 0:
+                notice = f"🔴 Vencida hace {abs(days)} día(s)"
+            elif days == 0:
+                notice = "🟠 Vence hoy"
+            elif days <= 2:
+                notice = f"🟡 Vence en {days} día(s)"
+            else:
+                notice = f"🔔 Vence en {days} día(s)"
+            rows.append({
+                "Aviso": notice,
+                "Código": row.get("code"),
+                "Tarea": row.get("title"),
+                "Responsable": row.get("assignee"),
+                "Finalización": due.strftime("%d/%m/%Y"),
+                "Estado": row.get("status"),
+                "Días": days,
+            })
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values(["Días", "Responsable", "Código"])
+
+
 # ============================================================
 # PANEL ADMINISTRADOR
 # ============================================================
@@ -3211,21 +3344,13 @@ elif page == "Tareas":
 
     else:
         # ====================================================
-        # LISTA OPERATIVA
+        # LISTADO COMPACTO + APERTURA INDIVIDUAL V2.11
         # ====================================================
         view = tasks.copy()
         view["Teórico %"] = view.apply(theoretical, axis=1)
         view["Semáforo"] = view.apply(traffic_light, axis=1)
-        view["Inicio"] = (
-            pd.to_datetime(view["start_date"], errors="coerce")
-            .dt.strftime("%d/%m/%Y")
-            .fillna("—")
-        )
-        view["Final"] = (
-            pd.to_datetime(view["due_date"], errors="coerce")
-            .dt.strftime("%d/%m/%Y")
-            .fillna("—")
-        )
+        view["Inicio"] = pd.to_datetime(view["start_date"], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
+        view["Final"] = pd.to_datetime(view["due_date"], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Abiertas", int((view["status"] != "Cerrada").sum()))
@@ -3234,204 +3359,69 @@ elif page == "Tareas":
         m3.metric("Con alerta", int(alerts))
         m4.metric("Cerradas", int((view["status"] == "Cerrada").sum()))
 
-        f1, f2, f3 = st.columns([1.0, 1.3, 1.4])
-        task_status_filter = f1.selectbox(
-            "Estado",
-            ["Todos", *status_values],
-            key="tasks_status_filter_v28",
-        )
-        task_person_filter = f2.selectbox(
-            "Responsable",
-            ["Todos", *people["name"].tolist()],
-            key="tasks_person_filter_v28",
-        )
-        search_task = f3.text_input(
-            "Buscar tarea",
-            placeholder="Código, tarea u observación",
-            key="tasks_search_v28",
-        )
+        f1, f2, f3 = st.columns([1.0, 1.3, 1.5])
+        task_status_filter = f1.selectbox("Estado", ["Todos", *status_values], key="tasks_status_filter_v211")
+        task_person_filter = f2.selectbox("Responsable", ["Todos", *people["name"].tolist()], key="tasks_person_filter_v211")
+        search_task = f3.text_input("Buscar tarea", placeholder="Código, tarea, responsable u observación", key="tasks_search_v211")
 
         filtered = view.copy()
-        if task_status_filter != "Todos":
-            filtered = filtered[filtered["status"] == task_status_filter]
-        if task_person_filter != "Todos":
-            filtered = filtered[filtered["assignee"] == task_person_filter]
+        if task_status_filter != "Todos": filtered = filtered[filtered["status"] == task_status_filter]
+        if task_person_filter != "Todos": filtered = filtered[filtered["assignee"] == task_person_filter]
         if search_task.strip():
             needle = search_task.strip().lower()
-            searchable = (
-                filtered["code"].astype(str)
-                + " " + filtered["title"].astype(str)
-                + " " + filtered["observation"].fillna("").astype(str)
-            ).str.lower()
+            searchable = (filtered["code"].astype(str) + " " + filtered["title"].astype(str) + " " + filtered["assignee"].astype(str) + " " + filtered["observation"].fillna("").astype(str)).str.lower()
             filtered = filtered[searchable.str.contains(needle, regex=False)]
 
-        st.caption(f"Mostrando {len(filtered)} de {len(view)} tareas activas en la lista.")
-
+        st.caption(f"Mostrando {len(filtered)} de {len(view)} tareas activas.")
         if filtered.empty:
             st.info("No hay tareas que coincidan con los filtros seleccionados.")
         else:
-            for _, task in filtered.iterrows():
-                task_id = int(task["id"])
-                current_status = str(task.get("status") or "Pendiente")
-                semaforo = str(task.get("Semáforo") or "⚪ Sin cronograma")
-                progress_value = int(round(float(task.get("progress") or 0)))
-                theoretical_value = task.get("Teórico %")
-                theoretical_text = "—" if pd.isna(theoretical_value) else f"{float(theoretical_value):.0f}%"
+            display = filtered[["Semáforo", "code", "title", "assignee", "priority", "status", "Inicio", "Final", "progress", "Teórico %"]].copy()
+            display["progress"] = pd.to_numeric(display["progress"], errors="coerce").fillna(0).round(0)
+            display["Teórico %"] = pd.to_numeric(display["Teórico %"], errors="coerce").round(0)
+            display = display.rename(columns={"code":"Código","title":"Tarea","assignee":"Responsable","priority":"Prioridad","status":"Estado","progress":"Avance %"})
+            st.dataframe(display, hide_index=True, use_container_width=True, height=min(620, 74 + 35 * len(display)))
 
-                with st.container(border=True):
-                    title_col, status_col = st.columns([4.6, 1.4], vertical_alignment="center")
-                    with title_col:
-                        st.markdown(f"#### {task['title']}")
-                        st.caption(f"{task['code']} · {semaforo}")
-                    with status_col:
-                        st.markdown(f"**{current_status}**")
-                        st.caption(f"Prioridad: {task.get('priority') or '—'}")
-
-                    i1, i2, i3, i4, i5 = st.columns([1.35, 1.0, 1.0, 1.0, 1.0])
-                    i1.markdown(f"**Responsable**  \n{task.get('assignee') or '—'}")
-                    i2.markdown(f"**Inicio**  \n{task.get('Inicio') or '—'}")
-                    i3.markdown(f"**Final**  \n{task.get('Final') or '—'}")
-                    i4.markdown(f"**Avance real**  \n{progress_value}%")
-                    i5.markdown(f"**Teórico**  \n{theoretical_text}")
-
-                    st.progress(min(max(progress_value, 0), 100) / 100.0)
-
-                    observation = str(task.get("observation") or "").strip()
-                    if observation and observation not in ("—", "None"):
-                        st.caption("Observación: " + observation[:220])
-
-                    a1, a2, a3, a4 = st.columns([2.2, 1.0, 1.0, 1.15], vertical_alignment="bottom")
-                    selected_status = a1.selectbox(
-                        "Modificar estado",
-                        status_values,
-                        index=(status_values.index(current_status) if current_status in status_values else 0),
-                        key=f"quick_status_v28_{task_id}",
-                    )
-                    change_status = a1.button(
-                        "Actualizar estado",
-                        key=f"update_status_v28_{task_id}",
-                        use_container_width=True,
-                    )
-                    close_now = a2.button(
-                        "✅ Cerrar",
-                        key=f"quick_close_v28_{task_id}",
-                        use_container_width=True,
-                        disabled=(current_status == "Cerrada"),
-                    )
-                    edit_now = a3.button(
-                        "✏️ Editar todo",
-                        key=f"quick_edit_v28_{task_id}",
-                        type="primary",
-                        use_container_width=True,
-                    )
-                    archive_now = a4.button(
-                        "🗑️ Quitar de lista",
-                        key=f"quick_archive_v28_{task_id}",
-                        use_container_width=True,
-                    )
-
-                    if change_status:
-                        new_status = selected_status
-                        new_progress = 100 if new_status == "Cerrada" else float(task.get("progress") or 0)
-                        was_closed = current_status == "Cerrada"
-                        now_closed = new_status == "Cerrada"
-                        closed_at = task.get("closed_at")
-                        finished_at = task.get("finished_at")
-
-                        if now_closed:
-                            closed_at = closed_at or datetime.now().isoformat()
-                            finished_at = finished_at or datetime.now().isoformat()
-                        elif was_closed:
-                            closed_at = None
-
-                        c.execute(
-                            """
-                            UPDATE tasks
-                            SET status = ?, progress = ?, finished_at = ?, closed_at = ?
-                            WHERE id = ?
-                            """,
-                            (new_status, new_progress, finished_at, closed_at, task_id),
-                        )
-                        c.commit()
-                        log_event(c, task_id, "status_changed", "Administrador", f"Estado modificado de {current_status} a {new_status}.")
-                        st.rerun()
-
-                    if close_now:
-                        now = datetime.now().isoformat()
-                        c.execute(
-                            """
-                            UPDATE tasks
-                            SET status = 'Cerrada', progress = 100,
-                                finished_at = COALESCE(finished_at, ?),
-                                closed_at = COALESCE(closed_at, ?)
-                            WHERE id = ?
-                            """,
-                            (now, now, task_id),
-                        )
-                        c.commit()
-                        log_event(c, task_id, "closed", "Administrador", "Cierre rápido realizado desde la lista de tareas.")
-                        st.rerun()
-
-                    if edit_now:
-                        st.session_state["edit_task_id_v28"] = task_id
-                        st.rerun()
-
-                    if archive_now:
-                        st.session_state["archive_task_id_v28"] = task_id
-                        st.rerun()
-
-                    if st.session_state.get("archive_task_id_v28") == task_id:
-                        st.warning(
-                            "La tarea se quitará de Tablero, Tareas y Gantt, pero conservará su historial."
-                        )
-                        q1, q2 = st.columns(2)
-                        if q1.button(
-                            "Confirmar quitar de la lista",
-                            key=f"confirm_archive_v28_{task_id}",
-                            type="primary",
-                            use_container_width=True,
-                        ):
-                            c.execute("UPDATE tasks SET archived = 1 WHERE id = ?", (task_id,))
-                            c.commit()
-                            log_event(c, task_id, "archived", "Administrador", "Tarea quitada de las listas operativas.")
-                            st.session_state.pop("archive_task_id_v28", None)
-                            st.rerun()
-                        if q2.button(
-                            "Cancelar",
-                            key=f"cancel_archive_v28_{task_id}",
-                            use_container_width=True,
-                        ):
-                            st.session_state.pop("archive_task_id_v28", None)
-                            st.rerun()
+            st.markdown("#### Abrir una tarea para modificar")
+            task_options = filtered["id"].astype(int).tolist()
+            task_lookup = {int(row["id"]): f"{row['code']} · {row['title']} · {row['assignee']}" for _, row in filtered.iterrows()}
+            selected_open_id = st.selectbox("Seleccionar tarea", task_options, format_func=lambda task_id: task_lookup.get(int(task_id), str(task_id)), key="open_task_selector_v211")
+            o1, o2, o3 = st.columns([1.4, 1.0, 1.0])
+            if o1.button("✏️ Abrir / modificar tarea", type="primary", use_container_width=True, key="open_task_button_v211"):
+                st.session_state["edit_task_id_v28"] = int(selected_open_id)
+                st.rerun()
+            selected_status_row = filtered.loc[filtered["id"].astype(int) == int(selected_open_id)].iloc[0]
+            if o2.button("✅ Cerrar tarea", use_container_width=True, disabled=(str(selected_status_row.get("status") or "") == "Cerrada"), key="close_selected_task_v211"):
+                now = datetime.now().isoformat()
+                c.execute("UPDATE tasks SET status='Cerrada', progress=100, finished_at=COALESCE(finished_at, ?), closed_at=COALESCE(closed_at, ?) WHERE id=?", (now, now, int(selected_open_id)))
+                c.commit()
+                log_event(c, int(selected_open_id), "closed", "Administrador", "Cierre administrativo desde listado compacto.")
+                st.rerun()
+            if o3.button("🗃️ Quitar de lista", use_container_width=True, key="archive_selected_task_v211"):
+                st.session_state["archive_task_id_v28"] = int(selected_open_id)
+            if st.session_state.get("archive_task_id_v28") == int(selected_open_id):
+                st.warning("La tarea se quitará de las listas operativas, pero su historial se conservará.")
+                q1, q2 = st.columns(2)
+                if q1.button("Confirmar", type="primary", use_container_width=True, key="confirm_archive_v211"):
+                    c.execute("UPDATE tasks SET archived=1 WHERE id=?", (int(selected_open_id),))
+                    c.commit()
+                    log_event(c, int(selected_open_id), "archived", "Administrador", "Tarea quitada de las listas operativas.")
+                    st.session_state.pop("archive_task_id_v28", None)
+                    st.rerun()
+                if q2.button("Cancelar", use_container_width=True, key="cancel_archive_v211"):
+                    st.session_state.pop("archive_task_id_v28", None)
+                    st.rerun()
 
         with st.expander("Tareas quitadas de la lista · restaurar", expanded=False):
-            archived = pd.read_sql_query(
-                """
-                SELECT t.id, t.code, t.title, t.status, t.progress,
-                       t.assignee_id, p.name AS assignee
-                FROM tasks t
-                JOIN people p ON p.id = t.assignee_id
-                WHERE COALESCE(t.archived, 0) = 1
-                ORDER BY t.id DESC
-                """,
-                c,
-            )
+            archived = pd.read_sql_query("SELECT t.id,t.code,t.title,t.status,t.progress,t.assignee_id,p.name AS assignee FROM tasks t JOIN people p ON p.id=t.assignee_id WHERE COALESCE(t.archived,0)=1 ORDER BY t.id DESC", c)
             if archived.empty:
                 st.caption("No hay tareas archivadas.")
             else:
                 for _, archived_task in archived.iterrows():
                     ar1, ar2 = st.columns([4.8, 1.0], vertical_alignment="center")
-                    ar1.markdown(
-                        f"**{archived_task['code']} · {archived_task['title']}**  \n"
-                        f"{archived_task['assignee']} · {archived_task['status']} · "
-                        f"{float(archived_task['progress'] or 0):.0f}%"
-                    )
-                    if ar2.button(
-                        "Restaurar",
-                        key=f"restore_task_v28_{int(archived_task['id'])}",
-                        use_container_width=True,
-                    ):
-                        c.execute("UPDATE tasks SET archived = 0 WHERE id = ?", (int(archived_task["id"]),))
+                    ar1.markdown(f"**{archived_task['code']} · {archived_task['title']}**  \n{archived_task['assignee']} · {archived_task['status']} · {float(archived_task['progress'] or 0):.0f}%")
+                    if ar2.button("Restaurar", key=f"restore_task_v211_{int(archived_task['id'])}", use_container_width=True):
+                        c.execute("UPDATE tasks SET archived=0 WHERE id=?", (int(archived_task["id"]),))
                         c.commit()
                         log_event(c, int(archived_task["id"]), "restored", "Administrador", "Tarea restaurada a las listas operativas.")
                         st.rerun()
@@ -3439,210 +3429,51 @@ elif page == "Tareas":
 
 elif page == "Calendario / Gantt":
 
-    section(
-        "Calendario y Gantt",
-        "Inicio, finalización y estado de cumplimiento",
-    )
+    section("Calendario operativo", "Tareas rutinarias, fechas de finalización, alertas y Gantt de cumplimiento")
+    cal1, cal2 = st.columns([1.0, 2.3])
+    month_pick = cal1.date_input("Mes a consultar", value=date.today().replace(day=1), format="DD/MM/YYYY", key="calendar_month_v211")
+    month_start = date(month_pick.year, month_pick.month, 1)
+    cal2.info("🔁 = tarea rutinaria / recurrente · 🔔 = fecha de finalización. Las recurrencias se muestran aunque la instancia futura todavía no haya sido creada en la base.")
+    month_names = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"]
+    st.markdown(f"### {month_names[month_start.month - 1].capitalize()} {month_start.year}")
+    render_month_calendar(tasks, month_start)
 
-    gantt = (
-        tasks.copy()
-    )
+    section("Avisos de finalización", "Tareas vencidas, que vencen hoy o dentro de los próximos 7 días")
+    due_view = due_alerts(tasks, date.today(), horizon_days=7)
+    if due_view.empty:
+        st.success("No hay tareas con vencimiento dentro de los próximos 7 días ni tareas vencidas abiertas.")
+    else:
+        overdue_n = int((due_view["Días"] < 0).sum())
+        today_n = int((due_view["Días"] == 0).sum())
+        soon_n = int(((due_view["Días"] > 0) & (due_view["Días"] <= 7)).sum())
+        d1,d2,d3 = st.columns(3)
+        d1.metric("Vencidas", overdue_n); d2.metric("Vencen hoy", today_n); d3.metric("Próximos 7 días", soon_n)
+        st.dataframe(due_view.drop(columns=["Días"]), hide_index=True, use_container_width=True)
 
-    gantt[
-        "Teórico %"
-    ] = (
-        gantt.apply(
-            theoretical,
-            axis=1,
-        )
-    )
+    section("Tareas rutinarias", "Consulta de actividades configuradas con recurrencia")
+    recurrent_view = tasks[tasks["recurrence"].notna() & (tasks["recurrence"].astype(str) != "No")].copy()
+    if recurrent_view.empty:
+        st.info("No hay tareas rutinarias configuradas.")
+    else:
+        recurrent_view["Próxima referencia"] = pd.to_datetime(recurrent_view["due_date"], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
+        st.dataframe(recurrent_view[["code","title","assignee","recurrence","recurrence_day","Próxima referencia","status"]].rename(columns={"code":"Código","title":"Tarea","assignee":"Responsable","recurrence":"Recurrencia","recurrence_day":"Día","status":"Estado"}), hide_index=True, use_container_width=True)
 
-    gantt[
-        "Semáforo"
-    ] = (
-        gantt.apply(
-            traffic_light,
-            axis=1,
-        )
-    )
-
+    section("Gantt de cumplimiento", "Incluye cronograma y demora entre asignación y aceptación")
+    gantt = tasks.copy()
+    gantt["Teórico %"] = gantt.apply(theoretical, axis=1)
+    gantt["Semáforo"] = gantt.apply(traffic_light, axis=1)
     acceptance_rows = gantt.apply(acceptance_metrics, axis=1)
-    acceptance_hours = pd.Series(
-        [
-            item["acceptance_hours"]
-            for item in acceptance_rows
-            if item["acceptance_hours"] is not None
-        ],
-        dtype=float,
-    )
-    accepted_hours = pd.Series(
-        [
-            item["acceptance_hours"]
-            for item in acceptance_rows
-            if item["accepted"]
-            and item["acceptance_hours"] is not None
-        ],
-        dtype=float,
-    )
-    pending_acceptance = int(
-        sum(1 for item in acceptance_rows if not item["accepted"])
-    )
-    accepted_24h = int(
-        sum(
-            1
-            for item in acceptance_rows
-            if item["accepted"]
-            and item["acceptance_hours"] is not None
-            and item["acceptance_hours"] <= 24
-        )
-    )
-    total_accepted = int(
-        sum(1 for item in acceptance_rows if item["accepted"])
-    )
-
-    a1, a2, a3, a4 = st.columns(4)
+    acceptance_hours = pd.Series([item["acceptance_hours"] for item in acceptance_rows if item["acceptance_hours"] is not None], dtype=float)
+    accepted_hours = pd.Series([item["acceptance_hours"] for item in acceptance_rows if item["accepted"] and item["acceptance_hours"] is not None], dtype=float)
+    pending_acceptance = int(sum(1 for item in acceptance_rows if not item["accepted"]))
+    accepted_24h = int(sum(1 for item in acceptance_rows if item["accepted"] and item["acceptance_hours"] is not None and item["acceptance_hours"] <= 24))
+    total_accepted = int(sum(1 for item in acceptance_rows if item["accepted"]))
+    a1,a2,a3,a4 = st.columns(4)
     a1.metric("Pendientes de aceptación", pending_acceptance)
-    a2.metric(
-        "Demora media de aceptación",
-        "—"
-        if accepted_hours.empty
-        else f"{accepted_hours.mean():.1f} h",
-    )
-    a3.metric(
-        "Aceptadas dentro de 24 h",
-        "—"
-        if total_accepted == 0
-        else f"{accepted_24h}/{total_accepted}",
-    )
-    a4.metric(
-        "Mayor demora registrada",
-        "—"
-        if acceptance_hours.empty
-        else (
-            f"{acceptance_hours.max():.1f} h"
-            if acceptance_hours.max() < 24
-            else f"{acceptance_hours.max() / 24:.1f} días"
-        ),
-    )
-
-    st.caption(
-        "En el Gantt, la línea adicional muestra el tiempo entre la asignación "
-        "y la aceptación. Si todavía no fue aceptada, se extiende hasta el momento actual."
-    )
-
-    gantt_chart(
-        gantt
-    )
-
-    scheduled = gantt[
-        gantt[
-            "start_date"
-        ].notna()
-        & (
-            gantt[
-                "start_date"
-            ]
-            != ""
-        )
-        & gantt[
-            "due_date"
-        ].notna()
-        & (
-            gantt[
-                "due_date"
-            ]
-            != ""
-        )
-    ].copy()
-
-    if not scheduled.empty:
-
-        scheduled[
-            "Inicio"
-        ] = (
-            pd.to_datetime(
-                scheduled[
-                    "start_date"
-                ]
-            )
-            .dt.strftime(
-                "%d/%m/%Y"
-            )
-        )
-
-        scheduled[
-            "Final"
-        ] = (
-            pd.to_datetime(
-                scheduled[
-                    "due_date"
-                ]
-            )
-            .dt.strftime(
-                "%d/%m/%Y"
-            )
-        )
-
-        scheduled[
-            "Real %"
-        ] = (
-            scheduled[
-                "progress"
-            ]
-            .fillna(
-                0
-            )
-            .round(
-                0
-            )
-        )
-
-        scheduled["Asignada"] = pd.to_datetime(
-            scheduled["created_at"],
-            errors="coerce",
-        ).dt.strftime("%d/%m/%Y %H:%M").fillna("—")
-
-        scheduled["Aceptada"] = pd.to_datetime(
-            scheduled["accepted_at"],
-            errors="coerce",
-        ).dt.strftime("%d/%m/%Y %H:%M").fillna("Pendiente")
-
-        scheduled["Demora aceptación"] = scheduled.apply(
-            lambda row: acceptance_metrics(row)["acceptance_label"],
-            axis=1,
-        )
-
-        section(
-            "Cronograma detallado"
-        )
-
-        st.dataframe(
-            scheduled[
-                [
-                    "Semáforo",
-                    "code",
-                    "title",
-                    "assignee",
-                    "Asignada",
-                    "Aceptada",
-                    "Demora aceptación",
-                    "Inicio",
-                    "Final",
-                    "priority",
-                    "Real %",
-                    "Teórico %",
-                ]
-            ].rename(
-                columns={
-                    "code": "Código",
-                    "title": "Tarea",
-                    "assignee": "Responsable",
-                    "priority": "Prioridad",
-                }
-            ),
-            hide_index=True,
-            use_container_width=True,
-        )
+    a2.metric("Demora media", "—" if accepted_hours.empty else f"{accepted_hours.mean():.1f} h")
+    a3.metric("Aceptadas ≤24 h", "—" if total_accepted == 0 else f"{accepted_24h}/{total_accepted}")
+    a4.metric("Mayor demora", "—" if acceptance_hours.empty else (f"{acceptance_hours.max():.1f} h" if acceptance_hours.max()<24 else f"{acceptance_hours.max()/24:.1f} días"))
+    gantt_chart(gantt)
 
 
 # ============================================================
@@ -4091,77 +3922,56 @@ elif page == "Cierres pendientes":
 
 elif page == "Avisos":
 
-    section(
-        "Avisos y seguimiento",
-        "Control de correos automáticos y recordatorios de avance",
-    )
-
+    section("Avisos y seguimiento", "Diagnóstico SMTP, prueba de correo y recordatorios automáticos")
     settings = get_mail_settings(BASE_DIR)
+    report = mail_configuration_report(BASE_DIR)
+    m1,m2,m3 = st.columns(3)
+    m1.metric("SMTP", "Configurado" if settings.configured else "Pendiente")
+    m2.metric("Correo administrador", settings.admin_email or "Pendiente")
+    m3.metric("URL pública", "Configurada" if settings.app_base_url else "Pendiente")
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric(
-        "SMTP",
-        "Configurado" if settings.configured else "Pendiente",
-    )
-    m2.metric(
-        "Correo administrador",
-        settings.admin_email or "Pendiente",
-    )
-    m3.metric(
-        "URL pública",
-        "Configurada" if settings.app_base_url else "Pendiente",
-    )
-
-    if not settings.configured or not settings.app_base_url:
-        st.warning(
-            "Para enviar enlaces por correo configura SMTP y APP_BASE_URL en .streamlit/secrets.toml."
-        )
-
-    if st.button(
-        "Ejecutar revisión de avisos ahora",
-        type="primary",
-        use_container_width=True,
-    ):
-        result = run_reminders(DB)
-        st.success(
-            f"Revisión terminada · revisadas {result['checked']} · "
-            f"enviadas {result['sent']} · errores {result['failed']} · "
-            f"omitidas {result['skipped']}"
-        )
-
-    section(
-        "Historial de correos",
-        "Registro de asignaciones, avances, recordatorios y cierres",
-    )
-
-    email_history = pd.read_sql_query(
-        """
-        SELECT
-            e.sent_at AS Fecha,
-            t.code AS Código,
-            p.name AS Responsable,
-            e.recipient AS Destinatario,
-            e.email_type AS Tipo,
-            e.status AS Estado,
-            e.detail AS Detalle
-        FROM email_logs e
-        LEFT JOIN tasks t ON t.id = e.task_id
-        LEFT JOIN people p ON p.id = t.assignee_id
-        ORDER BY e.id DESC
-        LIMIT 300
-        """,
-        c,
-    )
-
-    if email_history.empty:
-        st.info("Todavía no hay correos registrados.")
+    if report["missing"]:
+        st.error("No se puede enviar correo porque faltan estas variables: " + ", ".join(report["missing"]))
+        st.caption("En Streamlit Community Cloud cargalas en Manage app → Settings → Secrets. No guardes contraseñas en GitHub.")
     else:
-        st.dataframe(
-            email_history,
-            hide_index=True,
-            use_container_width=True,
-            height=520,
+        st.success(f"Configuración detectada: {report['host']}:{report['port']} · remitente {report['sender_email']}")
+
+    with st.expander("Configuración esperada en Streamlit Secrets", expanded=bool(report["missing"])):
+        example = (
+            'SMTP_HOST = "smtp.gmail.com"\n'
+            'SMTP_PORT = 587\n'
+            f'SMTP_USERNAME = "{ADMIN_EMAIL}"\n'
+            'SMTP_PASSWORD = "TU_CONTRASEÑA_DE_APLICACION"\n'
+            f'SMTP_SENDER_EMAIL = "{ADMIN_EMAIL}"\n'
+            'SMTP_SENDER_NAME = "SEV · Control de Tareas"\n'
+            'SMTP_USE_TLS = true\n'
+            'SMTP_USE_SSL = false\n'
+            f'ADMIN_EMAIL = "{ADMIN_EMAIL}"\n'
+            'APP_BASE_URL = "https://sev-control-tareas.streamlit.app"'
         )
+        st.code(example, language="toml")
+        st.caption("El ejemplo usa Gmail/Google Workspace. Si Sevion utiliza otro proveedor, sustituí HOST, puerto y método de seguridad.")
+
+    t1,t2 = st.columns([1.5,1.0])
+    test_recipient = t1.text_input("Enviar correo de prueba a", value=ADMIN_EMAIL, key="test_email_recipient_v211")
+    if t2.button("Enviar prueba SMTP", type="primary", use_container_width=True, key="test_smtp_v211"):
+        ok, detail = send_test_email(test_recipient.strip(), BASE_DIR)
+        if ok: st.success("Correo de prueba enviado correctamente.")
+        else: st.error(f"No se pudo enviar: {detail}")
+
+    if st.button("Ejecutar revisión de avisos ahora", use_container_width=True, key="run_reminders_v211"):
+        result = run_reminders(DB)
+        st.success(f"Revisión terminada · revisadas {result['checked']} · enviadas {result['sent']} · errores {result['failed']} · omitidas {result['skipped']}")
+
+    section("Próximos vencimientos", "Avisos visibles aunque el correo todavía no esté configurado")
+    due_view = due_alerts(tasks, date.today(), horizon_days=7)
+    if due_view.empty: st.success("No hay vencimientos abiertos dentro del horizonte de 7 días.")
+    else: st.dataframe(due_view.drop(columns=["Días"]), hide_index=True, use_container_width=True)
+
+    section("Historial de correos", "Registro de asignaciones, avances, recordatorios y cierres")
+    email_history = pd.read_sql_query("SELECT e.sent_at AS Fecha,t.code AS Código,p.name AS Responsable,e.recipient AS Destinatario,e.email_type AS Tipo,e.status AS Estado,e.detail AS Detalle FROM email_logs e LEFT JOIN tasks t ON t.id=e.task_id LEFT JOIN people p ON p.id=t.assignee_id ORDER BY e.id DESC LIMIT 300", c)
+    if email_history.empty: st.info("Todavía no hay correos registrados.")
+    else: st.dataframe(email_history, hide_index=True, use_container_width=True, height=520)
 
 
 # ============================================================
