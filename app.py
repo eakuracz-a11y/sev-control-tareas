@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.12"
+APP_VERSION = "V2.13"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -281,6 +281,51 @@ button[kind="primary"] {{
     border-radius: 10px;
 }}
 
+/* ========================================================
+   V2.13 · EXPERIENCIA MÓVIL
+   ======================================================== */
+@media (max-width: 768px) {{
+    .block-container {{
+        padding-top: 1.1rem !important;
+        padding-left: 0.72rem !important;
+        padding-right: 0.72rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 100% !important;
+    }}
+    [data-testid="stSidebar"] {{
+        min-width: 78vw !important;
+        max-width: 88vw !important;
+    }}
+    div[data-testid="stHorizontalBlock"] {{
+        flex-wrap: wrap !important;
+        gap: 0.55rem !important;
+    }}
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        min-width: 46% !important;
+        flex: 1 1 46% !important;
+    }}
+    h1 {{ font-size: 1.55rem !important; }}
+    h2 {{ font-size: 1.28rem !important; }}
+    h3 {{ font-size: 1.08rem !important; }}
+    div[data-testid="stMetric"] {{
+        padding: 9px 10px !important;
+        border-radius: 11px !important;
+    }}
+    div[data-testid="stMetricValue"] {{ font-size: 1.35rem !important; }}
+    .stButton > button, [data-testid="stFormSubmitButton"] > button {{
+        min-height: 44px !important;
+        width: 100% !important;
+        font-size: 0.92rem !important;
+    }}
+    [data-testid="stDataFrame"] {{ font-size: 0.78rem !important; }}
+}}
+@media (max-width: 480px) {{
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }}
+}}
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -420,7 +465,9 @@ def init_db():
             recurrence_day INTEGER,
             recurrence_parent_id INTEGER,
             created_at TEXT,
-            archived INTEGER DEFAULT 0
+            archived INTEGER DEFAULT 0,
+            operational_cycle TEXT,
+            restart_parent_id INTEGER
 
         );
 
@@ -475,6 +522,20 @@ def init_db():
             "ALTER TABLE tasks ADD COLUMN archived INTEGER DEFAULT 0"
         )
         c.commit()
+
+    # Migración V2.13: nueva etapa operativa sin borrar historial.
+    task_columns = {
+        row["name"]
+        for row in c.execute("PRAGMA table_info(tasks)").fetchall()
+    }
+    if "operational_cycle" not in task_columns:
+        c.execute("ALTER TABLE tasks ADD COLUMN operational_cycle TEXT")
+    if "restart_parent_id" not in task_columns:
+        c.execute("ALTER TABLE tasks ADD COLUMN restart_parent_id INTEGER")
+    c.execute(
+        "UPDATE tasks SET operational_cycle = COALESCE(NULLIF(operational_cycle, ''), 'Histórico')"
+    )
+    c.commit()
 
     people_columns = {
         row["name"]
@@ -2089,6 +2150,7 @@ page = st.sidebar.radio(
     "CONTROL DE TAREAS",
     [
         "Tablero",
+        "Nueva etapa",
         "Nueva tarea",
         "Tareas",
         "Calendario / Gantt",
@@ -2693,6 +2755,286 @@ if page == "Tablero":
             fig_month,
             use_container_width=True,
         )
+
+
+# ============================================================
+# NUEVA ETAPA OPERATIVA · V2.13
+# ============================================================
+
+elif page == "Nueva etapa":
+
+    section(
+        "Nueva etapa operativa",
+        "Reasigna tareas con nuevas fechas, conserva el historial y vuelve a enviar la aceptación.",
+    )
+
+    st.info(
+        "Las tareas anteriores no se borran. Al confirmar, quedan archivadas como histórico y "
+        "se crean nuevas asignaciones en 0% con estado Asignada."
+    )
+
+    restart_source = tasks.copy()
+    include_closed = st.checkbox(
+        "Incluir tareas cerradas",
+        value=False,
+        key="restart_include_closed_v213",
+    )
+    if not include_closed:
+        restart_source = restart_source[restart_source["status"] != "Cerrada"].copy()
+
+    if restart_source.empty:
+        st.warning("No hay tareas disponibles para iniciar una nueva etapa.")
+    else:
+        task_ids = restart_source["id"].astype(int).tolist()
+        labels = {
+            int(row["id"]): f"{row['code']} · {row['title']} · {row['assignee']}"
+            for _, row in restart_source.iterrows()
+        }
+
+        cycle_name = st.text_input(
+            "Nombre de la nueva etapa",
+            value=f"Inicio operativo {date.today().strftime('%d/%m/%Y')}",
+            key="restart_cycle_name_v213",
+        )
+
+        selected_restart_ids = st.multiselect(
+            "Tareas a reasignar",
+            task_ids,
+            default=task_ids,
+            format_func=lambda task_id: labels.get(int(task_id), str(task_id)),
+            key="restart_task_ids_v213",
+        )
+
+        d1, d2 = st.columns(2)
+        new_start = d1.date_input(
+            "Nueva fecha de inicio",
+            value=date.today(),
+            format="DD/MM/YYYY",
+            key="restart_start_v213",
+        )
+        date_strategy = d2.selectbox(
+            "Cómo definir la fecha final",
+            ["Mantener duración original", "Usar una misma fecha final"],
+            key="restart_date_strategy_v213",
+        )
+
+        common_due = None
+        if date_strategy == "Usar una misma fecha final":
+            common_due = st.date_input(
+                "Nueva fecha de finalización para todas",
+                value=date.today() + timedelta(days=30),
+                format="DD/MM/YYYY",
+                key="restart_common_due_v213",
+            )
+
+        send_restart_emails = st.checkbox(
+            "Enviar correo de nueva asignación a cada responsable",
+            value=True,
+            key="restart_send_email_v213",
+        )
+
+        st.markdown("#### Vista previa")
+        preview_rows = []
+        for task_id in selected_restart_ids:
+            row = restart_source.loc[
+                restart_source["id"].astype(int) == int(task_id)
+            ].iloc[0]
+            old_start = _safe_date(row.get("start_date"))
+            old_due = _safe_date(row.get("due_date"))
+            if (
+                date_strategy == "Mantener duración original"
+                and old_start
+                and old_due
+                and old_due >= old_start
+            ):
+                duration = (old_due - old_start).days
+                preview_due = new_start + timedelta(days=max(duration, 0))
+            elif common_due is not None:
+                preview_due = common_due
+            else:
+                preview_due = new_start + timedelta(days=30)
+            preview_rows.append(
+                {
+                    "Tarea": row["title"],
+                    "Responsable": row["assignee"],
+                    "Inicio": new_start.strftime("%d/%m/%Y"),
+                    "Final": preview_due.strftime("%d/%m/%Y"),
+                    "Prioridad": row.get("priority") or "Media",
+                }
+            )
+
+        if preview_rows:
+            st.dataframe(
+                pd.DataFrame(preview_rows),
+                hide_index=True,
+                use_container_width=True,
+                height=min(420, 42 + 35 * len(preview_rows)),
+            )
+
+        confirm_restart = st.checkbox(
+            "Confirmo el inicio de la nueva etapa",
+            value=False,
+            key="restart_confirm_v213",
+        )
+
+        if st.button(
+            "Iniciar nueva etapa y reasignar",
+            type="primary",
+            use_container_width=True,
+            disabled=(
+                not selected_restart_ids
+                or not confirm_restart
+                or not cycle_name.strip()
+            ),
+            key="restart_execute_v213",
+        ):
+            created = 0
+            sent = 0
+            failed = 0
+            observations = []
+
+            for task_id in selected_restart_ids:
+                old = c.execute(
+                    "SELECT * FROM tasks WHERE id = ?",
+                    (int(task_id),),
+                ).fetchone()
+                if not old:
+                    continue
+
+                old_start = _safe_date(old["start_date"])
+                old_due = _safe_date(old["due_date"])
+                if (
+                    date_strategy == "Mantener duración original"
+                    and old_start
+                    and old_due
+                    and old_due >= old_start
+                ):
+                    duration = (old_due - old_start).days
+                    new_due = new_start + timedelta(days=max(duration, 0))
+                elif common_due is not None:
+                    new_due = common_due
+                else:
+                    new_due = new_start + timedelta(days=30)
+
+                if new_due < new_start:
+                    observations.append(f"{old['code']}: fecha final anterior al inicio")
+                    continue
+
+                code = next_code(old["sector"], old["area"], c)
+                task_token = secrets.token_urlsafe(24)
+                recurrence_value = old["recurrence"]
+                recurrence_day = new_due.day if recurrence_value else None
+
+                c.execute(
+                    """
+                    INSERT INTO tasks(
+                        code, title, description, sector, area, maintenance_type,
+                        assignee_id, priority, requested, start_date, due_date,
+                        status, progress, observation, token, accepted_at,
+                        finished_at, closed_at, imported, recurrence,
+                        recurrence_day, recurrence_parent_id, created_at,
+                        archived, operational_cycle, restart_parent_id
+                    )
+                    VALUES(
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?, ?
+                    )
+                    """,
+                    (
+                        code,
+                        old["title"],
+                        old["description"],
+                        old["sector"],
+                        old["area"],
+                        old["maintenance_type"],
+                        old["assignee_id"],
+                        old["priority"],
+                        date.today().isoformat(),
+                        new_start.isoformat(),
+                        new_due.isoformat(),
+                        "Asignada",
+                        0,
+                        old["observation"],
+                        task_token,
+                        None,
+                        None,
+                        None,
+                        old["imported"],
+                        recurrence_value,
+                        recurrence_day,
+                        None,
+                        datetime.now().isoformat(),
+                        0,
+                        cycle_name.strip(),
+                        int(task_id),
+                    ),
+                )
+                new_task_id = c.execute(
+                    "SELECT last_insert_rowid() AS id"
+                ).fetchone()["id"]
+                c.execute(
+                    "UPDATE tasks SET archived = 1 WHERE id = ?",
+                    (int(task_id),),
+                )
+                c.commit()
+
+                log_event(
+                    c,
+                    int(task_id),
+                    "restart_archived",
+                    "Administrador",
+                    f"Archivada por nueva etapa {cycle_name.strip()}. Nueva tarea: {code}",
+                )
+                log_event(
+                    c,
+                    int(new_task_id),
+                    "restart_created",
+                    "Administrador",
+                    f"Nueva etapa {cycle_name.strip()}. Origen: {old['code']}",
+                )
+                created += 1
+
+                if send_restart_emails:
+                    person = person_for_task(c, int(new_task_id))
+                    task_mail = {
+                        "id": int(new_task_id),
+                        "code": code,
+                        "title": old["title"],
+                        "priority": old["priority"],
+                        "start_date": new_start.strftime("%d/%m/%Y"),
+                        "due_date": new_due.strftime("%d/%m/%Y"),
+                        "token": task_token,
+                        "progress": 0,
+                    }
+                    mail_ok, mail_detail = send_assignment_email(
+                        task_mail,
+                        person,
+                        BASE_DIR,
+                    )
+                    log_email(
+                        c,
+                        int(new_task_id),
+                        person.get("email", ""),
+                        "assignment_restart",
+                        f"Nueva etapa · tarea asignada · {code}",
+                        mail_ok,
+                        mail_detail,
+                    )
+                    if mail_ok:
+                        sent += 1
+                    else:
+                        failed += 1
+                        observations.append(f"{code}: {mail_detail}")
+
+            st.success(
+                f"Nueva etapa creada: {created} tarea(s). "
+                f"Correos enviados: {sent}. Errores de correo: {failed}."
+            )
+            if observations:
+                with st.expander("Ver observaciones", expanded=True):
+                    for item in observations:
+                        st.write("• " + item)
+            st.rerun()
 
 
 # ============================================================
@@ -3406,11 +3748,44 @@ elif page == "Tareas":
         if filtered.empty:
             st.info("No hay tareas que coincidan con los filtros seleccionados.")
         else:
-            display = filtered[["Semáforo", "code", "title", "assignee", "priority", "status", "Inicio", "Final", "progress", "Teórico %"]].copy()
-            display["progress"] = pd.to_numeric(display["progress"], errors="coerce").fillna(0).round(0)
-            display["Teórico %"] = pd.to_numeric(display["Teórico %"], errors="coerce").round(0)
-            display = display.rename(columns={"code":"Código","title":"Tarea","assignee":"Responsable","priority":"Prioridad","status":"Estado","progress":"Avance %"})
-            st.dataframe(display, hide_index=True, use_container_width=True, height=min(620, 74 + 35 * len(display)))
+            compact_view = st.toggle(
+                "Vista compacta · recomendada para celular",
+                value=True,
+                key="tasks_compact_mobile_v213",
+            )
+
+            if compact_view:
+                st.caption(
+                    "Cada tarjeta muestra lo esencial. Tocá Abrir / modificar para ver el detalle completo."
+                )
+                for _, task_row in filtered.head(60).iterrows():
+                    with st.container(border=True):
+                        st.markdown(f"**{task_row['title']}**")
+                        st.caption(f"{task_row['code']} · {task_row['Semáforo']}")
+                        cc1, cc2 = st.columns(2)
+                        cc1.write(f"**Responsable**  \n{task_row['assignee']}")
+                        cc2.write(f"**Estado**  \n{task_row['status']}")
+                        cc1.write(f"**Inicio**  \n{task_row['Inicio']}")
+                        cc2.write(f"**Final**  \n{task_row['Final']}")
+                        cc1.write(f"**Prioridad**  \n{task_row['priority']}")
+                        cc2.write(f"**Avance**  \n{float(task_row['progress'] or 0):.0f}%")
+                        if st.button(
+                            "Abrir / modificar",
+                            key=f"mobile_open_task_v213_{int(task_row['id'])}",
+                            use_container_width=True,
+                        ):
+                            st.session_state["edit_task_id_v28"] = int(task_row["id"])
+                            st.rerun()
+                if len(filtered) > 60:
+                    st.info(
+                        "La vista compacta muestra las primeras 60 tareas. Usá los filtros para reducir la lista."
+                    )
+            else:
+                display = filtered[["Semáforo", "code", "title", "assignee", "priority", "status", "Inicio", "Final", "progress", "Teórico %"]].copy()
+                display["progress"] = pd.to_numeric(display["progress"], errors="coerce").fillna(0).round(0)
+                display["Teórico %"] = pd.to_numeric(display["Teórico %"], errors="coerce").round(0)
+                display = display.rename(columns={"code":"Código","title":"Tarea","assignee":"Responsable","priority":"Prioridad","status":"Estado","progress":"Avance %"})
+                st.dataframe(display, hide_index=True, use_container_width=True, height=min(620, 74 + 35 * len(display)))
 
             st.markdown("#### Abrir una tarea para modificar")
             task_options = filtered["id"].astype(int).tolist()
