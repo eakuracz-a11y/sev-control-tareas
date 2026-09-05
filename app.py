@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.15"
+APP_VERSION = "V2.16"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -189,8 +189,8 @@ RECURRENCIAS = [
 
 BRAND_GREEN = "#19734A"
 BRAND_DARK = "#183D2D"
-BRAND_BG = "#F7F8F6"
-BRAND_BORDER = "#DDE5DF"
+BRAND_BG = "#F4F7F5"
+BRAND_BORDER = "#D6E1DA"
 
 COLOR_OK = "#4C946E"
 COLOR_WARNING = "#D59B29"
@@ -208,76 +208,90 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.15
+# CSS GENERAL · V2.16
 # ============================================================
 
 st.markdown(
     f"""
 <style>
+:root {{
+    --sev-green: {BRAND_GREEN};
+    --sev-dark: {BRAND_DARK};
+    --sev-bg: {BRAND_BG};
+    --sev-border: {BRAND_BORDER};
+}}
+
 .stApp {{
-    background: {BRAND_BG};
+    background:
+        radial-gradient(circle at 92% 3%, rgba(25,115,74,.055), transparent 22rem),
+        {BRAND_BG};
 }}
 
 .block-container {{
-    padding-top: 1.55rem;
+    padding-top: 1.15rem;
     padding-bottom: 1.55rem;
-    max-width: 1540px;
+    max-width: 1500px;
     overflow: visible;
 }}
 
 [data-testid="stSidebar"] {{
-    background: #F5F7F5;
+    background: linear-gradient(180deg, #F3F7F4 0%, #EDF3EF 100%);
     border-right: 1px solid {BRAND_BORDER};
 }}
 
 [data-testid="stSidebar"] * {{
-    color: #253A30 !important;
+    color: #203B2E !important;
 }}
 
 [data-testid="stSidebar"] [role="radiogroup"] label {{
-    border-radius: 9px;
-    padding-top: 0.24rem;
-    padding-bottom: 0.24rem;
+    border-radius: 10px;
+    padding-top: .26rem;
+    padding-bottom: .26rem;
+    transition: background .15s ease, transform .15s ease;
 }}
 
 [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
-    background: #E8EEE9;
+    background: #E2ECE5;
+    transform: translateX(2px);
 }}
 
 h1, h2, h3 {{
     color: {BRAND_DARK};
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
 }}
 
 div[data-testid="stMetric"] {{
-    background: #FFFFFF;
+    background: rgba(255,255,255,.96);
     border: 1px solid {BRAND_BORDER};
-    border-radius: 12px;
-    padding: 9px 12px;
-    min-height: 86px;
-    box-shadow: 0 1px 2px rgba(24,61,45,.025);
+    border-top: 3px solid rgba(25,115,74,.86);
+    border-radius: 13px;
+    padding: 10px 13px 9px 13px;
+    min-height: 90px;
+    box-shadow: 0 5px 16px rgba(24,61,45,.045);
 }}
 
 div[data-testid="stMetricLabel"] {{
-    color: #66766E;
-    font-weight: 650;
-    font-size: .77rem;
+    color: #65786E;
+    font-weight: 700;
+    font-size: .76rem;
 }}
 
 div[data-testid="stMetricValue"] {{
     color: {BRAND_DARK};
-    font-size: 1.52rem;
-    line-height: 1.1;
+    font-size: 1.58rem;
+    line-height: 1.08;
+    letter-spacing: -.02em;
 }}
 
 div[data-testid="stMetricDelta"] {{
-    font-size: .72rem;
+    font-size: .70rem;
 }}
 
 [data-testid="stDataFrame"] {{
     border: 1px solid {BRAND_BORDER};
-    border-radius: 10px;
+    border-radius: 11px;
     overflow: hidden;
+    box-shadow: 0 2px 8px rgba(24,61,45,.025);
 }}
 
 button[kind="primary"] {{
@@ -287,45 +301,45 @@ button[kind="primary"] {{
 }}
 
 .stButton > button {{
-    border-radius: 9px;
+    border-radius: 10px;
 }}
 
 [data-testid="stExpander"] {{
     border: 1px solid {BRAND_BORDER};
-    border-radius: 10px;
-    background: rgba(255,255,255,.70);
+    border-radius: 11px;
+    background: rgba(255,255,255,.76);
 }}
 
 .sev-section {{
-    margin: .72rem 0 .52rem 0;
-    padding: .54rem .80rem .50rem .80rem;
+    margin: .68rem 0 .48rem 0;
+    padding: .54rem .82rem .50rem .82rem;
     border-left: 4px solid {BRAND_GREEN};
-    background: linear-gradient(90deg, #EDF6F1 0%, rgba(247,248,246,.12) 76%);
-    border-radius: 0 9px 9px 0;
+    background: linear-gradient(90deg, #EAF4ED 0%, rgba(244,247,245,.20) 78%);
+    border-radius: 0 10px 10px 0;
 }}
 
 .sev-section-title {{
     color: {BRAND_DARK};
-    font-size: 1.16rem;
-    line-height: 1.16;
-    font-weight: 760;
+    font-size: 1.13rem;
+    line-height: 1.14;
+    font-weight: 790;
     margin: 0;
 }}
 
 .sev-section-note {{
-    color: #71827A;
-    font-size: .74rem;
-    margin-top: .18rem;
+    color: #71847A;
+    font-size: .72rem;
+    margin-top: .17rem;
 }}
 
 .sev-panel-title {{
     display:flex;
     align-items:center;
-    gap:.46rem;
+    gap:.44rem;
     color:{BRAND_DARK};
-    font-weight:750;
-    font-size:.93rem;
-    margin:.10rem 0 .40rem 0;
+    font-weight:770;
+    font-size:.91rem;
+    margin:.08rem 0 .38rem 0;
 }}
 
 .sev-dot {{
@@ -333,69 +347,118 @@ button[kind="primary"] {{
     height:8px;
     border-radius:999px;
     background:{BRAND_GREEN};
+    box-shadow: 0 0 0 3px rgba(25,115,74,.10);
     flex:0 0 8px;
 }}
 
 .sev-mini-card {{
     background:#FFFFFF;
     border:1px solid {BRAND_BORDER};
-    border-radius:10px;
-    padding:.55rem .64rem;
-    margin-bottom:.38rem;
+    border-radius:11px;
+    padding:.57rem .66rem;
+    margin-bottom:.40rem;
+    box-shadow:0 2px 7px rgba(24,61,45,.035);
 }}
 
 .sev-mini-kicker {{
-    color:#75857E;
-    font-size:.67rem;
-    font-weight:700;
+    color:#75877E;
+    font-size:.66rem;
+    font-weight:750;
     text-transform:uppercase;
-    letter-spacing:.05em;
+    letter-spacing:.045em;
 }}
 
 .sev-mini-main {{
     color:{BRAND_DARK};
-    font-size:.81rem;
-    font-weight:700;
-    line-height:1.22;
-    margin-top:.10rem;
+    font-size:.80rem;
+    font-weight:720;
+    line-height:1.21;
+    margin-top:.09rem;
 }}
 
 .sev-mini-sub {{
-    color:#75857E;
-    font-size:.70rem;
+    color:#75877E;
+    font-size:.69rem;
     margin-top:.13rem;
 }}
 
 .sev-kpi-strip {{
-    color:#71827A;
-    font-size:.71rem;
-    margin-top:-.18rem;
+    color:#708179;
+    font-size:.70rem;
+    margin-top:-.15rem;
     margin-bottom:.26rem;
+}}
+
+.sev-exec-grid {{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:.62rem;
+    margin:.20rem 0 .38rem 0;
+}}
+
+.sev-exec-card {{
+    background:linear-gradient(145deg,#FFFFFF 0%,#F7FAF8 100%);
+    border:1px solid {BRAND_BORDER};
+    border-radius:12px;
+    padding:.70rem .78rem;
+    min-height:82px;
+    box-shadow:0 4px 14px rgba(24,61,45,.035);
+}}
+
+.sev-exec-kicker {{
+    color:#75877E;
+    font-size:.64rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.055em;
+}}
+
+.sev-exec-value {{
+    color:{BRAND_DARK};
+    font-size:1.12rem;
+    font-weight:800;
+    line-height:1.05;
+    margin-top:.12rem;
+}}
+
+.sev-exec-note {{
+    color:#74847D;
+    font-size:.68rem;
+    margin-top:.18rem;
+}}
+
+.sev-header-wrap {{
+    background:rgba(255,255,255,.73);
+    border:1px solid {BRAND_BORDER};
+    border-radius:14px;
+    padding:.58rem .72rem;
+    box-shadow:0 5px 18px rgba(24,61,45,.035);
+    margin-bottom:.66rem;
 }}
 
 div[data-testid="stSelectbox"] label,
 div[data-testid="stTextInput"] label,
 div[data-testid="stDateInput"] label {{
-    font-size:.75rem;
-    color:#5E7067;
-    font-weight:650;
+    font-size:.73rem;
+    color:#5D7166;
+    font-weight:680;
 }}
 
 div[data-baseweb="select"] > div,
 input {{
-    min-height: 37px !important;
+    min-height: 36px !important;
 }}
 
 hr {{
-    margin:.60rem 0 !important;
+    margin:.56rem 0 !important;
 }}
 
 @media (max-width: 768px) {{
     .block-container {{
-        padding-top: .75rem !important;
-        padding-left: .62rem !important;
-        padding-right: .62rem !important;
-        padding-bottom: 1.6rem !important;
+        padding-top: .70rem !important;
+        padding-left: .58rem !important;
+        padding-right: .58rem !important;
+        padding-bottom: 1.5rem !important;
         max-width: 100% !important;
     }}
     [data-testid="stSidebar"] {{
@@ -404,33 +467,41 @@ hr {{
     }}
     div[data-testid="stHorizontalBlock"] {{
         flex-wrap: wrap !important;
-        gap: .45rem !important;
+        gap: .42rem !important;
     }}
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
         min-width: 46% !important;
         flex: 1 1 46% !important;
     }}
-    h1 {{ font-size: 1.45rem !important; }}
-    h2 {{ font-size: 1.20rem !important; }}
-    h3 {{ font-size: 1.02rem !important; }}
+    h1 {{ font-size: 1.42rem !important; }}
+    h2 {{ font-size: 1.18rem !important; }}
+    h3 {{ font-size: 1.00rem !important; }}
     .sev-section {{
-        margin:.52rem 0 .40rem 0 !important;
-        padding:.46rem .60rem !important;
+        margin:.50rem 0 .38rem 0 !important;
+        padding:.44rem .58rem !important;
     }}
-    .sev-section-title {{ font-size:1.01rem !important; }}
-    .sev-section-note {{ font-size:.69rem !important; }}
+    .sev-section-title {{ font-size:.99rem !important; }}
+    .sev-section-note {{ font-size:.67rem !important; }}
     div[data-testid="stMetric"] {{
         padding: 8px 9px !important;
         border-radius: 10px !important;
         min-height:74px !important;
     }}
-    div[data-testid="stMetricValue"] {{ font-size: 1.23rem !important; }}
+    div[data-testid="stMetricValue"] {{ font-size: 1.20rem !important; }}
+    .sev-exec-grid {{
+        grid-template-columns:1fr !important;
+        gap:.42rem !important;
+    }}
+    .sev-exec-card {{
+        min-height:auto !important;
+        padding:.58rem .65rem !important;
+    }}
     .stButton > button, [data-testid="stFormSubmitButton"] > button {{
         min-height: 44px !important;
         width: 100% !important;
-        font-size: .90rem !important;
+        font-size: .88rem !important;
     }}
-    [data-testid="stDataFrame"] {{ font-size: .75rem !important; }}
+    [data-testid="stDataFrame"] {{ font-size: .74rem !important; }}
 }}
 
 @media (max-width: 480px) {{
@@ -450,6 +521,8 @@ hr {{
 # ============================================================
 
 def render_header():
+    st.markdown('<div class="sev-header-wrap">', unsafe_allow_html=True)
+
     logo_col, title_col, version_col = st.columns(
         [1.0, 5.8, 1.0],
         vertical_alignment="center",
@@ -457,22 +530,22 @@ def render_header():
 
     with logo_col:
         if LOGO.exists():
-            st.image(str(LOGO), width=128)
+            st.image(str(LOGO), width=126)
         else:
             st.markdown("### Sevion")
 
     with title_col:
         st.markdown(
             """
-            <div style="padding-top:0.02rem;">
-                <div style="font-size:0.67rem;letter-spacing:0.13em;font-weight:750;color:#71827A;margin-bottom:0.06rem;">
+            <div style="padding-top:0.01rem;">
+                <div style="font-size:0.64rem;letter-spacing:0.15em;font-weight:800;color:#6F8378;margin-bottom:0.04rem;">
                     GESTIÓN OPERACIONAL
                 </div>
-                <div style="font-size:1.78rem;line-height:1.08;font-weight:780;color:#183D2D;margin:0;">
+                <div style="font-size:1.72rem;line-height:1.06;font-weight:810;color:#183D2D;margin:0;">
                     Control de Tareas
                 </div>
-                <div style="font-size:0.74rem;color:#7B8D84;margin-top:0.18rem;">
-                    Asignación · aceptación · ejecución · cumplimiento
+                <div style="font-size:0.72rem;color:#7A8C83;margin-top:0.16rem;">
+                    Prioridades · ejecución · cumplimiento · alertas
                 </div>
             </div>
             """,
@@ -482,18 +555,17 @@ def render_header():
     with version_col:
         st.markdown(
             f"""
-            <div style="text-align:right;padding-top:0.10rem;">
-                <span style="display:inline-block;border:1px solid #DDE5DF;background:#FFFFFF;border-radius:999px;
-                padding:0.28rem 0.60rem;font-size:0.72rem;font-weight:750;color:#19734A;">{APP_VERSION}</span>
+            <div style="text-align:right;padding-top:0.08rem;">
+                <div style="font-size:.59rem;color:#87968F;font-weight:750;margin-bottom:.16rem;">VERSIÓN</div>
+                <span style="display:inline-block;border:1px solid #CFE0D5;background:#EAF4ED;border-radius:999px;
+                padding:0.30rem 0.66rem;font-size:0.74rem;font-weight:800;color:#19734A;">{APP_VERSION}</span>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.markdown(
-        '<div style="height:1px;background:#DDE5DF;margin:0.55rem 0 0.72rem 0;"></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 # ============================================================
@@ -2393,8 +2465,8 @@ people = pd.read_sql_query(
 if page == "Tablero":
 
     section(
-        "Tablero de cumplimiento",
-        "Visión ejecutiva de avance, cronograma y desvíos",
+        "Tablero ejecutivo",
+        "Avance, riesgos, responsables y próximos vencimientos",
     )
 
     f1, f2, f3, f4 = (
@@ -2602,12 +2674,44 @@ if page == "Tablero":
         unsafe_allow_html=True,
     )
 
+    health_base = max(open_count, 1)
+    health_pct = round(100 * on_time_count / health_base)
+    risk_count = overdue_count + pending_acceptance_count
+    risk_label = (
+        "Sin alertas críticas"
+        if risk_count == 0
+        else f"{risk_count} foco(s) inmediato(s)"
+    )
+
+    st.markdown(
+        f"""
+        <div class="sev-exec-grid">
+            <div class="sev-exec-card">
+                <div class="sev-exec-kicker">Salud operativa</div>
+                <div class="sev-exec-value">{health_pct}%</div>
+                <div class="sev-exec-note">tareas activas en condición verde</div>
+            </div>
+            <div class="sev-exec-card">
+                <div class="sev-exec-kicker">Foco inmediato</div>
+                <div class="sev-exec-value">{risk_label}</div>
+                <div class="sev-exec-note">{overdue_count} con atraso · {pending_acceptance_count} sin aceptar</div>
+            </div>
+            <div class="sev-exec-card">
+                <div class="sev-exec-kicker">Cierre administrativo</div>
+                <div class="sev-exec-value">{waiting_close}</div>
+                <div class="sev-exec-note">tarea(s) terminada(s) esperando cierre</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # --------------------------------------------------------
     # CUMPLIMIENTO POR RESPONSABLE · V2.5
     # --------------------------------------------------------
     section(
         "Cumplimiento por responsable",
-        "Lectura rápida del desempeño de cada persona en las tareas filtradas",
+        "Ranking compacto de desempeño y alertas por responsable",
     )
 
     if view.empty:
@@ -2701,7 +2805,7 @@ if page == "Tablero":
                 cliponaxis=False,
             )
             fig_people.update_layout(
-                height=max(280, 54 * len(chart_people) + 90),
+                height=max(220, min(360, 42 * len(chart_people) + 78)),
                 margin=dict(l=10, r=45, t=5, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="#FFFFFF",
@@ -2737,7 +2841,7 @@ if page == "Tablero":
 
     section(
         "Cronograma de cumplimiento · Gantt",
-        "Cronograma, estado y próximos vencimientos en una misma vista",
+        "Fechas, estado y vencimientos clave en una vista ejecutiva",
     )
 
     gantt_col, hitos_col = st.columns([4.25, 1.15], gap="medium")
