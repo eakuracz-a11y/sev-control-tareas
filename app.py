@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.13"
+APP_VERSION = "V2.15"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,26 +208,25 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL
+# CSS GENERAL · V2.15
 # ============================================================
 
 st.markdown(
     f"""
 <style>
-
 .stApp {{
     background: {BRAND_BG};
 }}
 
 .block-container {{
-    padding-top: 3.4rem;
-    padding-bottom: 2.2rem;
-    max-width: 1500px;
+    padding-top: 1.55rem;
+    padding-bottom: 1.55rem;
+    max-width: 1540px;
     overflow: visible;
 }}
 
 [data-testid="stSidebar"] {{
-    background: #F3F5F3;
+    background: #F5F7F5;
     border-right: 1px solid {BRAND_BORDER};
 }}
 
@@ -237,8 +236,8 @@ st.markdown(
 
 [data-testid="stSidebar"] [role="radiogroup"] label {{
     border-radius: 9px;
-    padding-top: 0.30rem;
-    padding-bottom: 0.30rem;
+    padding-top: 0.24rem;
+    padding-bottom: 0.24rem;
 }}
 
 [data-testid="stSidebar"] [role="radiogroup"] label:hover {{
@@ -247,27 +246,37 @@ st.markdown(
 
 h1, h2, h3 {{
     color: {BRAND_DARK};
+    letter-spacing: -0.02em;
 }}
 
 div[data-testid="stMetric"] {{
-    background: white;
+    background: #FFFFFF;
     border: 1px solid {BRAND_BORDER};
-    border-radius: 14px;
-    padding: 13px 15px;
+    border-radius: 12px;
+    padding: 9px 12px;
+    min-height: 86px;
+    box-shadow: 0 1px 2px rgba(24,61,45,.025);
 }}
 
 div[data-testid="stMetricLabel"] {{
-    color: #607168;
-    font-weight: 600;
+    color: #66766E;
+    font-weight: 650;
+    font-size: .77rem;
 }}
 
 div[data-testid="stMetricValue"] {{
     color: {BRAND_DARK};
+    font-size: 1.52rem;
+    line-height: 1.1;
+}}
+
+div[data-testid="stMetricDelta"] {{
+    font-size: .72rem;
 }}
 
 [data-testid="stDataFrame"] {{
     border: 1px solid {BRAND_BORDER};
-    border-radius: 12px;
+    border-radius: 10px;
     overflow: hidden;
 }}
 
@@ -278,18 +287,115 @@ button[kind="primary"] {{
 }}
 
 .stButton > button {{
-    border-radius: 10px;
+    border-radius: 9px;
 }}
 
-/* ========================================================
-   V2.13 · EXPERIENCIA MÓVIL
-   ======================================================== */
+[data-testid="stExpander"] {{
+    border: 1px solid {BRAND_BORDER};
+    border-radius: 10px;
+    background: rgba(255,255,255,.70);
+}}
+
+.sev-section {{
+    margin: .72rem 0 .52rem 0;
+    padding: .54rem .80rem .50rem .80rem;
+    border-left: 4px solid {BRAND_GREEN};
+    background: linear-gradient(90deg, #EDF6F1 0%, rgba(247,248,246,.12) 76%);
+    border-radius: 0 9px 9px 0;
+}}
+
+.sev-section-title {{
+    color: {BRAND_DARK};
+    font-size: 1.16rem;
+    line-height: 1.16;
+    font-weight: 760;
+    margin: 0;
+}}
+
+.sev-section-note {{
+    color: #71827A;
+    font-size: .74rem;
+    margin-top: .18rem;
+}}
+
+.sev-panel-title {{
+    display:flex;
+    align-items:center;
+    gap:.46rem;
+    color:{BRAND_DARK};
+    font-weight:750;
+    font-size:.93rem;
+    margin:.10rem 0 .40rem 0;
+}}
+
+.sev-dot {{
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background:{BRAND_GREEN};
+    flex:0 0 8px;
+}}
+
+.sev-mini-card {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:10px;
+    padding:.55rem .64rem;
+    margin-bottom:.38rem;
+}}
+
+.sev-mini-kicker {{
+    color:#75857E;
+    font-size:.67rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+}}
+
+.sev-mini-main {{
+    color:{BRAND_DARK};
+    font-size:.81rem;
+    font-weight:700;
+    line-height:1.22;
+    margin-top:.10rem;
+}}
+
+.sev-mini-sub {{
+    color:#75857E;
+    font-size:.70rem;
+    margin-top:.13rem;
+}}
+
+.sev-kpi-strip {{
+    color:#71827A;
+    font-size:.71rem;
+    margin-top:-.18rem;
+    margin-bottom:.26rem;
+}}
+
+div[data-testid="stSelectbox"] label,
+div[data-testid="stTextInput"] label,
+div[data-testid="stDateInput"] label {{
+    font-size:.75rem;
+    color:#5E7067;
+    font-weight:650;
+}}
+
+div[data-baseweb="select"] > div,
+input {{
+    min-height: 37px !important;
+}}
+
+hr {{
+    margin:.60rem 0 !important;
+}}
+
 @media (max-width: 768px) {{
     .block-container {{
-        padding-top: 1.1rem !important;
-        padding-left: 0.72rem !important;
-        padding-right: 0.72rem !important;
-        padding-bottom: 2rem !important;
+        padding-top: .75rem !important;
+        padding-left: .62rem !important;
+        padding-right: .62rem !important;
+        padding-bottom: 1.6rem !important;
         max-width: 100% !important;
     }}
     [data-testid="stSidebar"] {{
@@ -298,34 +404,41 @@ button[kind="primary"] {{
     }}
     div[data-testid="stHorizontalBlock"] {{
         flex-wrap: wrap !important;
-        gap: 0.55rem !important;
+        gap: .45rem !important;
     }}
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
         min-width: 46% !important;
         flex: 1 1 46% !important;
     }}
-    h1 {{ font-size: 1.55rem !important; }}
-    h2 {{ font-size: 1.28rem !important; }}
-    h3 {{ font-size: 1.08rem !important; }}
-    div[data-testid="stMetric"] {{
-        padding: 9px 10px !important;
-        border-radius: 11px !important;
+    h1 {{ font-size: 1.45rem !important; }}
+    h2 {{ font-size: 1.20rem !important; }}
+    h3 {{ font-size: 1.02rem !important; }}
+    .sev-section {{
+        margin:.52rem 0 .40rem 0 !important;
+        padding:.46rem .60rem !important;
     }}
-    div[data-testid="stMetricValue"] {{ font-size: 1.35rem !important; }}
+    .sev-section-title {{ font-size:1.01rem !important; }}
+    .sev-section-note {{ font-size:.69rem !important; }}
+    div[data-testid="stMetric"] {{
+        padding: 8px 9px !important;
+        border-radius: 10px !important;
+        min-height:74px !important;
+    }}
+    div[data-testid="stMetricValue"] {{ font-size: 1.23rem !important; }}
     .stButton > button, [data-testid="stFormSubmitButton"] > button {{
         min-height: 44px !important;
         width: 100% !important;
-        font-size: 0.92rem !important;
+        font-size: .90rem !important;
     }}
-    [data-testid="stDataFrame"] {{ font-size: 0.78rem !important; }}
+    [data-testid="stDataFrame"] {{ font-size: .75rem !important; }}
 }}
+
 @media (max-width: 480px) {{
     div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
         min-width: 100% !important;
         flex: 1 1 100% !important;
     }}
 }}
-
 </style>
 """,
     unsafe_allow_html=True,
@@ -337,32 +450,28 @@ button[kind="primary"] {{
 # ============================================================
 
 def render_header():
-
     logo_col, title_col, version_col = st.columns(
-        [1.25, 5.4, 1.35],
+        [1.0, 5.8, 1.0],
         vertical_alignment="center",
     )
 
     with logo_col:
         if LOGO.exists():
-            st.image(
-                str(LOGO),
-                width=145,
-            )
+            st.image(str(LOGO), width=128)
         else:
             st.markdown("### Sevion")
 
     with title_col:
         st.markdown(
             """
-            <div style="padding-top:0.15rem;">
-                <div style="font-size:0.72rem;letter-spacing:0.13em;font-weight:700;color:#7B8D84;margin-bottom:0.12rem;">
+            <div style="padding-top:0.02rem;">
+                <div style="font-size:0.67rem;letter-spacing:0.13em;font-weight:750;color:#71827A;margin-bottom:0.06rem;">
                     GESTIÓN OPERACIONAL
                 </div>
-                <div style="font-size:2.10rem;line-height:1.22;font-weight:750;color:#183D2D;margin:0;overflow:visible;padding:0.08rem 0;">
+                <div style="font-size:1.78rem;line-height:1.08;font-weight:780;color:#183D2D;margin:0;">
                     Control de Tareas
                 </div>
-                <div style="font-size:0.82rem;color:#7B8D84;margin-top:0.30rem;">
+                <div style="font-size:0.74rem;color:#7B8D84;margin-top:0.18rem;">
                     Asignación · aceptación · ejecución · cumplimiento
                 </div>
             </div>
@@ -373,16 +482,16 @@ def render_header():
     with version_col:
         st.markdown(
             f"""
-            <div style="text-align:right;padding-top:0.35rem;">
+            <div style="text-align:right;padding-top:0.10rem;">
                 <span style="display:inline-block;border:1px solid #DDE5DF;background:#FFFFFF;border-radius:999px;
-                padding:0.35rem 0.70rem;font-size:0.78rem;font-weight:700;color:#19734A;">{APP_VERSION}</span>
+                padding:0.28rem 0.60rem;font-size:0.72rem;font-weight:750;color:#19734A;">{APP_VERSION}</span>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
     st.markdown(
-        '<div style="height:1px;background:#DDE5DF;margin:0.85rem 0 1.15rem 0;"></div>',
+        '<div style="height:1px;background:#DDE5DF;margin:0.55rem 0 0.72rem 0;"></div>',
         unsafe_allow_html=True,
     )
 
@@ -391,20 +500,17 @@ def render_header():
 # SECCIONES NATIVAS
 # ============================================================
 
-def section(
-    title,
-    note="",
-):
-
-    st.subheader(
-        title
+def section(title, note=""):
+    note_html = f'<div class="sev-section-note">{note}</div>' if note else ""
+    st.markdown(
+        f"""
+        <div class="sev-section">
+            <div class="sev-section-title">{title}</div>
+            {note_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-
-    if note:
-
-        st.caption(
-            note
-        )
 
 
 # ============================================================
@@ -1413,6 +1519,7 @@ def acceptance_metrics(row, reference=None):
 def gantt_chart(
     view
 ):
+    """Gantt compacto y legible en PC y celular."""
 
     gantt = view[
         view["start_date"].notna()
@@ -1422,40 +1529,37 @@ def gantt_chart(
     ].copy()
 
     if gantt.empty:
-        st.info(
-            "No hay tareas con fecha de inicio y finalización para mostrar."
-        )
+        st.info("No hay tareas con fecha de inicio y finalización para mostrar.")
         return
 
-    gantt["Inicio"] = pd.to_datetime(
-        gantt["start_date"],
-        errors="coerce",
-    )
-    gantt["Final"] = pd.to_datetime(
-        gantt["due_date"],
-        errors="coerce",
-    )
+    gantt["Inicio"] = pd.to_datetime(gantt["start_date"], errors="coerce")
+    gantt["Final"] = pd.to_datetime(gantt["due_date"], errors="coerce")
+    gantt = gantt.dropna(subset=["Inicio", "Final"]).copy()
 
-    gantt["Etiqueta"] = (
-        gantt["code"]
-        + " · "
-        + gantt["title"].astype(str).str.slice(0, 45)
+    if gantt.empty:
+        st.info("No hay fechas válidas para construir el Gantt.")
+        return
+
+    # Etiqueta corta: evita que el nombre de la tarea consuma la mitad del gráfico.
+    def _short_code(code):
+        raw = str(code or "")
+        parts = raw.split("-")
+        return parts[-1] if parts else raw
+
+    gantt["Código corto"] = gantt["code"].apply(_short_code)
+    gantt["Tarea corta"] = gantt["title"].astype(str).apply(
+        lambda value: value if len(value) <= 29 else value[:27].rstrip() + "…"
     )
+    gantt["Etiqueta"] = gantt["Código corto"] + " · " + gantt["Tarea corta"]
     gantt["Cumplimiento"] = gantt["Semáforo"]
 
     acceptance = gantt.apply(acceptance_metrics, axis=1)
     gantt["Asignada"] = acceptance.apply(lambda x: x["assigned_at"])
     gantt["Aceptada"] = acceptance.apply(lambda x: x["accepted_at"])
     gantt["Fin aceptación"] = acceptance.apply(lambda x: x["acceptance_end"])
-    gantt["Demora aceptación (h)"] = acceptance.apply(
-        lambda x: x["acceptance_hours"]
-    )
-    gantt["Control aceptación"] = acceptance.apply(
-        lambda x: x["acceptance_label"]
-    )
-    gantt["Aceptación confirmada"] = acceptance.apply(
-        lambda x: x["accepted"]
-    )
+    gantt["Demora aceptación (h)"] = acceptance.apply(lambda x: x["acceptance_hours"])
+    gantt["Control aceptación"] = acceptance.apply(lambda x: x["acceptance_label"])
+    gantt["Aceptación confirmada"] = acceptance.apply(lambda x: x["accepted"])
 
     colors = {
         "🟢 Cerrada": BRAND_GREEN,
@@ -1467,22 +1571,47 @@ def gantt_chart(
         "⚪ Sin cronograma": COLOR_NEUTRAL,
     }
 
+    # Orden: primero las que terminan antes. En pantalla se muestran de arriba hacia abajo.
+    gantt = gantt.sort_values(["Final", "Inicio", "priority"], ascending=[True, True, True])
+
     fig = px.timeline(
-        gantt.sort_values(["Final", "priority"]),
+        gantt,
         x_start="Inicio",
         x_end="Final",
         y="Etiqueta",
         color="Cumplimiento",
         color_discrete_map=colors,
-        hover_data={
-            "assignee": True,
-            "progress": ":.0f",
-            "Teórico %": ":.0f",
-            "priority": True,
-            "Inicio": "|%d/%m/%Y",
-            "Final": "|%d/%m/%Y",
-            "Control aceptación": True,
-        },
+        custom_data=[
+            "code",
+            "title",
+            "assignee",
+            "priority",
+            "status",
+            "progress",
+            "Teórico %",
+            "Inicio",
+            "Final",
+            "Control aceptación",
+        ],
+    )
+
+    # Barra más clara y ligeramente redondeada visualmente por grosor/espaciado.
+    fig.update_traces(
+        marker_line_width=0,
+        opacity=0.90,
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            "%{customdata[1]}<br><br>"
+            "Responsable: <b>%{customdata[2]}</b><br>"
+            "Prioridad: %{customdata[3]}<br>"
+            "Estado: %{customdata[4]}<br>"
+            "Avance real: %{customdata[5]:.0f}%<br>"
+            "Avance teórico: %{customdata[6]:.0f}%<br>"
+            "Inicio: %{customdata[7]|%d/%m/%Y}<br>"
+            "Final: %{customdata[8]|%d/%m/%Y}<br>"
+            "%{customdata[9]}"
+            "<extra></extra>"
+        ),
     )
 
     accepted_legend_added = False
@@ -1501,13 +1630,13 @@ def gantt_chart(
         if accepted:
             line_color = "#7D8B84"
             marker_color = BRAND_GREEN
-            legend_name = "Tiempo hasta aceptación"
+            legend_name = "Aceptación"
             showlegend = not accepted_legend_added
             accepted_legend_added = True
         else:
             line_color = COLOR_WARNING
             marker_color = COLOR_DANGER
-            legend_name = "Pendiente de aceptación"
+            legend_name = "Pendiente aceptación"
             showlegend = not pending_legend_added
             pending_legend_added = True
 
@@ -1518,16 +1647,13 @@ def gantt_chart(
                 mode="lines+markers",
                 name=legend_name,
                 showlegend=showlegend,
-                line=dict(
-                    color=line_color,
-                    width=7,
-                ),
+                line=dict(color=line_color, width=5),
                 marker=dict(
                     color=[line_color, marker_color],
-                    size=[7, 10],
+                    size=[6, 9],
                     symbol=["circle", "diamond"],
                 ),
-                opacity=0.82,
+                opacity=0.78,
                 customdata=[delay_text, delay_text],
                 hovertemplate=(
                     "<b>Control de aceptación</b><br>"
@@ -1541,32 +1667,94 @@ def gantt_chart(
     fig.update_yaxes(
         autorange="reversed",
         title=None,
+        automargin=True,
+        tickfont=dict(size=11),
+        showgrid=False,
     )
     fig.update_xaxes(
-        title="Cronograma",
+        title=None,
         gridcolor="#E8ECE9",
+        tickformat="%d/%m",
+        dtick="D7",
+        showline=True,
+        linecolor="#DDE5DF",
+        rangeslider=dict(visible=False),
     )
 
+    today_ms = pd.Timestamp(date.today()).timestamp() * 1000
     fig.add_vline(
-        x=pd.Timestamp(date.today()).timestamp() * 1000,
-        line_width=1,
+        x=today_ms,
+        line_width=1.5,
         line_dash="dash",
         line_color="#6B7770",
     )
+    fig.add_annotation(
+        x=today_ms,
+        y=1.02,
+        xref="x",
+        yref="paper",
+        text="Hoy",
+        showarrow=False,
+        font=dict(size=10, color="#6B7770"),
+    )
 
     fig.update_layout(
-        height=max(440, min(920, 36 * len(gantt) + 170)),
-        margin=dict(l=10, r=10, t=10, b=10),
-        legend_title_text="",
+        height=max(350, min(760, 30 * len(gantt) + 112)),
+        margin=dict(l=8, r=10, t=40, b=12),
+        bargap=0.22,
+        legend=dict(
+            title_text="",
+            orientation="h",
+            yanchor="bottom",
+            y=1.07,
+            xanchor="left",
+            x=0,
+            font=dict(size=10),
+        ),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="#FFFFFF",
-        font=dict(color=BRAND_DARK),
+        font=dict(color=BRAND_DARK, size=10),
+        hoverlabel=dict(
+            bgcolor="#FFFFFF",
+            font_size=12,
+            font_family="Arial",
+        ),
     )
 
     st.plotly_chart(
         fig,
         use_container_width=True,
+        config={
+            "displaylogo": False,
+            "responsive": True,
+            "modeBarButtonsToRemove": [
+                "lasso2d",
+                "select2d",
+                "autoScale2d",
+            ],
+        },
     )
+
+    # En celular es más útil una lista corta debajo del gráfico que depender del hover.
+    with st.expander("Ver cronograma en formato lista", expanded=False):
+        mobile_view = gantt[[
+            "code", "title", "assignee", "Inicio", "Final", "Cumplimiento", "progress"
+        ]].copy()
+        mobile_view["Inicio"] = mobile_view["Inicio"].dt.strftime("%d/%m/%Y")
+        mobile_view["Final"] = mobile_view["Final"].dt.strftime("%d/%m/%Y")
+        mobile_view["progress"] = pd.to_numeric(mobile_view["progress"], errors="coerce").fillna(0).round(0)
+        mobile_view = mobile_view.rename(columns={
+            "code": "Código",
+            "title": "Tarea",
+            "assignee": "Responsable",
+            "Cumplimiento": "Estado",
+            "progress": "Avance %",
+        })
+        st.dataframe(
+            mobile_view,
+            hide_index=True,
+            use_container_width=True,
+        )
 
 
 
@@ -2391,35 +2579,27 @@ if page == "Tablero":
         ).sum()
     )
 
-    k1, k2, k3, k4, k5 = (
-        st.columns(
-            5
-        )
+    pending_acceptance_count = int(
+        (
+            view["status"].isin(["Asignada", "Pendiente"])
+            & view["accepted_at"].isna()
+        ).sum()
+    )
+    on_time_count = int(
+        view["Semáforo"].astype(str).str.contains("🟢").sum()
     )
 
-    k1.metric(
-        "Abiertas",
-        open_count,
-    )
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Total activas", open_count, delta=f"{requested_month} solicitadas este mes")
+    k2.metric("En ejecución", execution_count)
+    k3.metric("Pend. aceptación", pending_acceptance_count)
+    k4.metric("Con atraso", overdue_count)
+    k5.metric("En término", on_time_count)
 
-    k2.metric(
-        "En ejecución",
-        execution_count,
-    )
-
-    k3.metric(
-        "Con atraso",
-        overdue_count,
-    )
-
-    k4.metric(
-        "Esperan cierre",
-        waiting_close,
-    )
-
-    k5.metric(
-        "Solicitadas este mes",
-        requested_month,
+    st.markdown(
+        f'<div class="sev-kpi-strip">Esperan cierre: <b>{waiting_close}</b> · '
+        f'Vista filtrada: <b>{len(view)}</b> tarea(s)</div>',
+        unsafe_allow_html=True,
     )
 
     # --------------------------------------------------------
@@ -2557,16 +2737,64 @@ if page == "Tablero":
 
     section(
         "Cronograma de cumplimiento · Gantt",
-        "La línea vertical marca la fecha actual",
+        "Cronograma, estado y próximos vencimientos en una misma vista",
     )
 
-    gantt_chart(
-        view
-    )
+    gantt_col, hitos_col = st.columns([4.25, 1.15], gap="medium")
+
+    with gantt_col:
+        gantt_chart(view)
+
+    with hitos_col:
+        st.markdown(
+            '<div class="sev-panel-title"><span class="sev-dot"></span>Próximos hitos</div>',
+            unsafe_allow_html=True,
+        )
+        hitos = view.copy()
+        hitos["_due"] = pd.to_datetime(hitos["due_date"], errors="coerce")
+        hitos = hitos[
+            hitos["_due"].notna()
+            & (hitos["status"] != "Cerrada")
+        ].sort_values("_due").head(6)
+
+        if hitos.empty:
+            st.caption("No hay próximos vencimientos.")
+        else:
+            for _, hito in hitos.iterrows():
+                due_hito = hito["_due"].date()
+                dias = (due_hito - date.today()).days
+
+                if dias < 0:
+                    plazo = f"Vencida {abs(dias)} d"
+                    state_color = COLOR_DANGER
+                elif dias == 0:
+                    plazo = "Hoy"
+                    state_color = COLOR_WARNING
+                else:
+                    plazo = f"{dias} d"
+                    state_color = BRAND_GREEN
+
+                title_hito = str(hito.get("title") or "")
+                if len(title_hito) > 38:
+                    title_hito = title_hito[:36].rstrip() + "…"
+
+                st.markdown(
+                    f"""
+                    <div class="sev-mini-card">
+                        <div class="sev-mini-kicker">{str(hito.get("assignee") or "—")}</div>
+                        <div class="sev-mini-main">{title_hito}</div>
+                        <div class="sev-mini-sub">
+                            {due_hito.strftime("%d/%m/%Y")} ·
+                            <span style="color:{state_color};font-weight:750;">{plazo}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
     section(
         "Tareas que requieren atención",
-        "Prioridad para tareas amarillas y rojas",
+        "Prioridad inmediata para tareas amarillas y rojas",
     )
 
     attention = view[
@@ -2648,31 +2876,40 @@ if page == "Tablero":
             )
         )
 
+        attention_display = attention[
+            [
+                "Semáforo",
+                "code",
+                "title",
+                "assignee",
+                "priority",
+                "Final",
+                "Real %",
+                "Desvío pp",
+            ]
+        ].rename(
+            columns={
+                "code": "Código",
+                "title": "Tarea",
+                "assignee": "Responsable",
+                "priority": "Prioridad",
+            }
+        )
+
         st.dataframe(
-            attention[
-                [
-                    "Semáforo",
-                    "code",
-                    "title",
-                    "assignee",
-                    "priority",
-                    "Inicio",
-                    "Final",
-                    "Real %",
-                    "Teórico %",
-                    "Desvío pp",
-                ]
-            ].rename(
-                columns={
-                    "code": "Código",
-                    "title": "Tarea",
-                    "assignee": "Responsable",
-                    "priority": "Prioridad",
-                }
-            ),
+            attention_display.head(8),
             hide_index=True,
             use_container_width=True,
+            height=min(330, 74 + 35 * min(len(attention_display), 8)),
         )
+
+        if len(attention_display) > 8:
+            with st.expander(f"Ver las {len(attention_display)} tareas con atención"):
+                st.dataframe(
+                    attention_display,
+                    hide_index=True,
+                    use_container_width=True,
+                )
 
     section(
         "Solicitudes por mes",
