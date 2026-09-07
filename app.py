@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.17"
+APP_VERSION = "V2.18"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,7 +208,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.17
+# CSS GENERAL · V2.18
 # ============================================================
 
 st.markdown(
@@ -523,8 +523,62 @@ hr {{
     background:{BRAND_GREEN};
     border-radius:999px;
 }}
+
+.sev-year-grid {{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:.52rem;
+    margin:.20rem 0 .62rem 0;
+}}
+.sev-month-card {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:11px;
+    padding:.58rem .64rem;
+    min-height:92px;
+}}
+.sev-month-name {{
+    color:#6D8076;
+    font-size:.64rem;
+    font-weight:820;
+    letter-spacing:.055em;
+    text-transform:uppercase;
+}}
+.sev-month-status {{
+    color:{BRAND_DARK};
+    font-size:.80rem;
+    font-weight:790;
+    line-height:1.18;
+    margin-top:.20rem;
+}}
+.sev-month-date {{
+    color:#75877E;
+    font-size:.68rem;
+    margin-top:.16rem;
+}}
+.sev-month-on {{
+    border-top:3px solid {COLOR_OK};
+}}
+.sev-month-late {{
+    border-top:3px solid {COLOR_WARNING};
+}}
+.sev-month-bad {{
+    border-top:3px solid {COLOR_DANGER};
+}}
+.sev-month-open {{
+    border-top:3px solid {COLOR_WAIT};
+}}
+.sev-month-neutral {{
+    border-top:3px solid {COLOR_NEUTRAL};
+}}
+.sev-annual-note {{
+    color:#6F8077;
+    font-size:.70rem;
+    margin:.10rem 0 .36rem 0;
+}}
 @media (max-width: 768px) {{
     .sev-action-summary {{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }}
+    .sev-year-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }}
 }}
 
 @media (max-width: 768px) {{
@@ -1353,6 +1407,15 @@ def next_recurrence(
 
 
 def generate_recurring():
+    """
+    Genera las próximas instancias de tareas recurrentes.
+
+    V2.18:
+    - Mantiene una tarea maestra.
+    - Genera todas las ocurrencias necesarias hasta 45 días hacia adelante.
+    - No crea retroactivamente meses antiguos que nunca fueron registrados.
+    - Evita duplicados por recurrence_parent_id + due_date.
+    """
 
     c = con()
 
@@ -1368,133 +1431,263 @@ def generate_recurring():
         """
     ).fetchall()
 
+    today = date.today()
+    horizon = today + timedelta(days=45)
+
     for task in masters:
 
-        due = pd.to_datetime(
-            task["due_date"]
-        ).date()
-
-        next_due = next_recurrence(
-            due,
-            task["recurrence"],
-        )
-
-        if not next_due:
-
+        try:
+            base_due = pd.to_datetime(task["due_date"]).date()
+        except Exception:
             continue
 
-        if (
-            next_due
-            > date.today()
-            + timedelta(days=45)
-        ):
-
+        if not base_due:
             continue
 
-        existing = c.execute(
-            """
-            SELECT 1
-            FROM tasks
-            WHERE recurrence_parent_id = ?
-            AND due_date = ?
-            """,
-            (
-                task["id"],
-                next_due.isoformat(),
-            ),
-        ).fetchone()
-
-        if existing:
-
-            continue
-
-        next_start = next_due
-
+        # Conserva la duración original de la tarea.
+        duration = 0
         if task["start_date"]:
+            try:
+                base_start = pd.to_datetime(task["start_date"]).date()
+                duration = max((base_due - base_start).days, 0)
+            except Exception:
+                duration = 0
 
-            previous_start = (
-                pd.to_datetime(
-                    task["start_date"]
-                ).date()
-            )
+        candidate = next_recurrence(base_due, task["recurrence"])
+        safety = 0
 
-            duration = max(
+        # Avanzar hasta la primera recurrencia vigente sin fabricar histórico.
+        while candidate and candidate < today:
+            candidate = next_recurrence(candidate, task["recurrence"])
+            safety += 1
+            if safety > 240:
+                break
+
+        # Crear las instancias futuras necesarias dentro del horizonte.
+        while candidate and candidate <= horizon and safety <= 260:
+
+            existing = c.execute(
+                """
+                SELECT 1
+                FROM tasks
+                WHERE recurrence_parent_id = ?
+                AND due_date = ?
+                """,
                 (
-                    due
-                    - previous_start
-                ).days,
-                0,
-            )
-
-            next_start = (
-                next_due
-                - timedelta(
-                    days=duration
-                )
-            )
-
-        code = next_code(
-            task["sector"],
-            task["area"],
-            c,
-        )
-
-        c.execute(
-            """
-            INSERT INTO tasks(
-
-                code,
-                title,
-                description,
-                sector,
-                area,
-                maintenance_type,
-                assignee_id,
-                priority,
-                requested,
-                start_date,
-                due_date,
-                status,
-                progress,
-                observation,
-                token,
-                recurrence,
-                recurrence_day,
-                recurrence_parent_id,
-                created_at
-
-            )
-            VALUES(
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
-            """,
-            (
-                code,
-                task["title"],
-                task["description"],
-                task["sector"],
-                task["area"],
-                task["maintenance_type"],
-                task["assignee_id"],
-                task["priority"],
-                date.today().isoformat(),
-                next_start.isoformat(),
-                next_due.isoformat(),
-                "Asignada",
-                0,
-                task["observation"],
-                secrets.token_urlsafe(
-                    24
+                    task["id"],
+                    candidate.isoformat(),
                 ),
-                task["recurrence"],
-                next_due.day,
-                task["id"],
-                datetime.now().isoformat(),
-            ),
-        )
+            ).fetchone()
+
+            if not existing:
+                next_start = candidate - timedelta(days=duration)
+
+                code = next_code(
+                    task["sector"],
+                    task["area"],
+                    c,
+                )
+
+                c.execute(
+                    """
+                    INSERT INTO tasks(
+                        code,
+                        title,
+                        description,
+                        sector,
+                        area,
+                        maintenance_type,
+                        assignee_id,
+                        priority,
+                        requested,
+                        start_date,
+                        due_date,
+                        status,
+                        progress,
+                        observation,
+                        token,
+                        recurrence,
+                        recurrence_day,
+                        recurrence_parent_id,
+                        created_at
+                    )
+                    VALUES(
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    )
+                    """,
+                    (
+                        code,
+                        task["title"],
+                        task["description"],
+                        task["sector"],
+                        task["area"],
+                        task["maintenance_type"],
+                        task["assignee_id"],
+                        task["priority"],
+                        today.isoformat(),
+                        next_start.isoformat(),
+                        candidate.isoformat(),
+                        "Asignada",
+                        0,
+                        task["observation"],
+                        secrets.token_urlsafe(24),
+                        task["recurrence"],
+                        candidate.day,
+                        task["id"],
+                        datetime.now().isoformat(),
+                    ),
+                )
+
+            candidate = next_recurrence(candidate, task["recurrence"])
+            safety += 1
 
     c.commit()
     c.close()
+
+
+def recurring_family_rows(connection, master_id):
+    """Devuelve maestra + instancias de una recurrencia, incluso archivadas."""
+    return pd.read_sql_query(
+        """
+        SELECT
+            t.*,
+            p.name AS assignee,
+            p.email
+        FROM tasks t
+        JOIN people p ON p.id = t.assignee_id
+        WHERE t.id = ?
+           OR t.recurrence_parent_id = ?
+        ORDER BY t.due_date, t.id
+        """,
+        connection,
+        params=(int(master_id), int(master_id)),
+    )
+
+
+def recurring_monthly_year_control(connection, master_row, year):
+    """
+    Construye el control anual para una tarea mensual.
+
+    No inventa cierres: la fecha real se toma de finished_at y,
+    como respaldo administrativo, closed_at.
+    """
+    master_id = int(master_row["id"])
+    family = recurring_family_rows(connection, master_id)
+
+    base_due = _safe_date(master_row.get("due_date"))
+    if base_due is None:
+        return pd.DataFrame()
+
+    recurrence_day = master_row.get("recurrence_day")
+    try:
+        recurrence_day = int(recurrence_day) if recurrence_day else base_due.day
+    except Exception:
+        recurrence_day = base_due.day
+
+    rows = []
+    today = date.today()
+
+    for month in range(1, 13):
+        last_day = calendar.monthrange(int(year), month)[1]
+        planned_day = min(recurrence_day, last_day)
+        planned = date(int(year), month, planned_day)
+
+        # Antes de que la rutina comenzara, no se exige cumplimiento.
+        if planned < date(base_due.year, base_due.month, 1):
+            rows.append({
+                "Mes nº": month,
+                "Prevista": planned,
+                "Finalizada": None,
+                "Estado anual": "— No aplica",
+                "Clase": "neutral",
+                "Desvío días": None,
+                "Código": "",
+                "Estado tarea": "",
+                "Avance %": None,
+            })
+            continue
+
+        month_instances = family.copy()
+        month_instances["_due"] = pd.to_datetime(
+            month_instances["due_date"], errors="coerce"
+        )
+        month_instances = month_instances[
+            month_instances["_due"].notna()
+            & (month_instances["_due"].dt.year == int(year))
+            & (month_instances["_due"].dt.month == month)
+        ].copy()
+
+        if not month_instances.empty:
+            # Si hubiera más de una, prioriza la que coincide más con la fecha prevista.
+            month_instances["_diff"] = (
+                month_instances["_due"].dt.date.apply(
+                    lambda d: abs((d - planned).days)
+                )
+            )
+            inst = month_instances.sort_values(["_diff", "id"]).iloc[0]
+
+            finished = pd.to_datetime(inst.get("finished_at"), errors="coerce")
+            closed = pd.to_datetime(inst.get("closed_at"), errors="coerce")
+            actual_ts = finished if not pd.isna(finished) else closed
+            actual = None if pd.isna(actual_ts) else actual_ts.date()
+
+            status = str(inst.get("status") or "")
+            progress = float(inst.get("progress") or 0)
+
+            if actual is not None:
+                delta = (actual - planned).days
+                if delta <= 0:
+                    annual_status = "🟢 Cumplida"
+                    css_class = "on"
+                else:
+                    annual_status = "🟡 Cumplida fora do prazo"
+                    css_class = "late"
+            elif planned < today:
+                delta = None
+                annual_status = "🔴 Vencida"
+                css_class = "bad"
+            elif planned == today:
+                delta = None
+                annual_status = "🔵 Vence hoje"
+                css_class = "open"
+            else:
+                delta = None
+                annual_status = "🔵 Programada"
+                css_class = "open"
+
+            rows.append({
+                "Mes nº": month,
+                "Prevista": planned,
+                "Finalizada": actual,
+                "Estado anual": annual_status,
+                "Clase": css_class,
+                "Desvío días": delta,
+                "Código": str(inst.get("code") or ""),
+                "Estado tarefa": status,
+                "Avance %": round(progress, 0),
+            })
+
+        else:
+            if planned < today:
+                annual_status = "⚪ Sem registro"
+                css_class = "neutral"
+            else:
+                annual_status = "○ Programada"
+                css_class = "neutral"
+
+            rows.append({
+                "Mes nº": month,
+                "Prevista": planned,
+                "Finalizada": None,
+                "Estado anual": annual_status,
+                "Clase": css_class,
+                "Desvío días": None,
+                "Código": "",
+                "Estado tarefa": "",
+                "Avance %": None,
+            })
+
+    return pd.DataFrame(rows)
 
 
 # ============================================================
@@ -4023,44 +4216,28 @@ elif page == "Recurrentes":
 
     section(
         "Tareas recurrentes",
-        "Programación automática de actividades repetitivas",
+        "Programación automática, fecha real de finalización y cumplimiento anual",
     )
 
     recurrent = tasks[
-        tasks[
-            "recurrence"
-        ].notna()
-        & (
-            tasks[
-                "recurrence"
-            ]
-            != "No"
-        )
+        tasks["recurrence"].notna()
+        & (tasks["recurrence"].astype(str) != "No")
     ].copy()
 
     if recurrent.empty:
-
-        st.info(
-            "No existen tareas recurrentes."
-        )
+        st.info("No existen tareas recurrentes.")
 
     else:
-
-        recurrent[
-            "Final"
-        ] = (
-            pd.to_datetime(
-                recurrent[
-                    "due_date"
-                ],
-                errors="coerce",
-            )
-            .dt.strftime(
-                "%d/%m/%Y"
-            )
-            .fillna(
-                "—"
-            )
+        recurrent["Final prevista"] = (
+            pd.to_datetime(recurrent["due_date"], errors="coerce")
+            .dt.strftime("%d/%m/%Y")
+            .fillna("—")
+        )
+        recurrent["Finalizada"] = (
+            pd.to_datetime(recurrent["finished_at"], errors="coerce")
+            .fillna(pd.to_datetime(recurrent["closed_at"], errors="coerce"))
+            .dt.strftime("%d/%m/%Y")
+            .fillna("—")
         )
 
         st.dataframe(
@@ -4073,7 +4250,8 @@ elif page == "Recurrentes":
                     "assignee",
                     "recurrence",
                     "recurrence_day",
-                    "Final",
+                    "Final prevista",
+                    "Finalizada",
                     "status",
                 ]
             ].rename(
@@ -4091,6 +4269,214 @@ elif page == "Recurrentes":
             hide_index=True,
             use_container_width=True,
         )
+
+        # ----------------------------------------------------
+        # CONTROL ANUAL DE TAREAS MENSUALES
+        # ----------------------------------------------------
+        section(
+            "Cumplimiento anual · tareas mensuales",
+            "Cada mes muestra fecha prevista, fecha real de finalización y cumplimiento",
+        )
+
+        monthly_masters = tasks[
+            (tasks["recurrence"] == "Mensual")
+            & tasks["recurrence_parent_id"].isna()
+        ].copy()
+
+        if monthly_masters.empty:
+            st.info("No hay tareas maestras configuradas con recurrencia mensual.")
+        else:
+            monthly_masters = monthly_masters.sort_values(
+                ["assignee", "title"]
+            ).copy()
+
+            monthly_masters["_label"] = (
+                monthly_masters["title"].astype(str)
+                + " · "
+                + monthly_masters["assignee"].astype(str)
+            )
+
+            sel1, sel2 = st.columns([3.2, 1.0])
+            selected_master_id = sel1.selectbox(
+                "Tarea mensual",
+                monthly_masters["id"].astype(int).tolist(),
+                format_func=lambda task_id: monthly_masters.loc[
+                    monthly_masters["id"].astype(int) == int(task_id),
+                    "_label",
+                ].iloc[0],
+                key="annual_monthly_task_v218",
+            )
+
+            available_years = list(
+                range(
+                    min(
+                        date.today().year,
+                        pd.to_datetime(
+                            monthly_masters["due_date"], errors="coerce"
+                        ).dt.year.dropna().astype(int).min()
+                        if pd.to_datetime(
+                            monthly_masters["due_date"], errors="coerce"
+                        ).notna().any()
+                        else date.today().year,
+                    ),
+                    date.today().year + 2,
+                )
+            )
+            selected_year = sel2.selectbox(
+                "Año",
+                available_years,
+                index=available_years.index(date.today().year)
+                if date.today().year in available_years
+                else len(available_years) - 1,
+                key="annual_monthly_year_v218",
+            )
+
+            master = monthly_masters.loc[
+                monthly_masters["id"].astype(int) == int(selected_master_id)
+            ].iloc[0]
+
+            annual = recurring_monthly_year_control(
+                c,
+                master,
+                int(selected_year),
+            )
+
+            if annual.empty:
+                st.warning("No fue posible construir el calendario anual de esta tarea.")
+            else:
+                month_names_short = [
+                    "Janeiro", "Fevereiro", "Março", "Abril",
+                    "Maio", "Junho", "Julho", "Agosto",
+                    "Setembro", "Outubro", "Novembro", "Dezembro",
+                ]
+
+                due_until_today = annual[
+                    annual["Prevista"].apply(
+                        lambda d: isinstance(d, date) and d <= date.today()
+                    )
+                    & (annual["Estado anual"] != "— No aplica")
+                ].copy()
+
+                completed = int(
+                    due_until_today["Estado anual"]
+                    .astype(str)
+                    .str.contains("Cumplida", regex=False)
+                    .sum()
+                )
+                on_time = int(
+                    due_until_today["Estado anual"]
+                    .astype(str)
+                    .str.contains("🟢 Cumplida", regex=False)
+                    .sum()
+                )
+                late = int(
+                    due_until_today["Estado anual"]
+                    .astype(str)
+                    .str.contains("fora do prazo", regex=False)
+                    .sum()
+                )
+                overdue_or_missing = int(
+                    due_until_today["Estado anual"]
+                    .astype(str)
+                    .str.contains("Vencida|Sem registro", regex=True)
+                    .sum()
+                )
+                expected = len(due_until_today)
+                compliance_pct = (
+                    round(100 * on_time / expected)
+                    if expected > 0
+                    else 0
+                )
+
+                r1, r2, r3, r4, r5 = st.columns(5)
+                r1.metric("Cumprimento anual", f"{compliance_pct}%")
+                r2.metric("Previstas até hoje", expected)
+                r3.metric("No prazo", on_time)
+                r4.metric("Fora do prazo", late)
+                r5.metric("Vencidas / sem registro", overdue_or_missing)
+
+                st.markdown(
+                    f'<div class="sev-annual-note"><b>{master["title"]}</b> · '
+                    f'Responsável: {master["assignee"]} · '
+                    f'Dia de referência: {int(master["recurrence_day"] or _safe_date(master["due_date"]).day)}</div>',
+                    unsafe_allow_html=True,
+                )
+
+                cards = []
+                for _, row in annual.iterrows():
+                    month_idx = int(row["Mes nº"]) - 1
+                    month_name = month_names_short[month_idx]
+                    planned = row["Prevista"]
+                    finished = row["Finalizada"]
+                    planned_text = planned.strftime("%d/%m/%Y") if isinstance(planned, date) else "—"
+                    finished_text = finished.strftime("%d/%m/%Y") if isinstance(finished, date) else "—"
+                    status_text = str(row["Estado anual"])
+                    cls = str(row["Clase"])
+
+                    if finished_text != "—":
+                        detail = f"Prevista {planned_text} · Finalizada {finished_text}"
+                    else:
+                        detail = f"Prevista {planned_text} · Finalizada —"
+
+                    cards.append(
+                        f"""
+                        <div class="sev-month-card sev-month-{cls}">
+                            <div class="sev-month-name">{month_name}</div>
+                            <div class="sev-month-status">{status_text}</div>
+                            <div class="sev-month-date">{detail}</div>
+                        </div>
+                        """
+                    )
+
+                st.markdown(
+                    '<div class="sev-year-grid">'
+                    + "".join(cards)
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+
+                st.caption(
+                    "🟢 concluída no prazo · 🟡 concluída após a data prevista · "
+                    "🔴 vencida sem conclusão · 🔵 aberta/programada · ⚪ sem registro histórico."
+                )
+
+                detail = annual.copy()
+                detail["Mês"] = detail["Mes nº"].apply(
+                    lambda m: month_names_short[int(m) - 1]
+                )
+                detail["Data prevista"] = detail["Prevista"].apply(
+                    lambda d: d.strftime("%d/%m/%Y") if isinstance(d, date) else "—"
+                )
+                detail["Data de término"] = detail["Finalizada"].apply(
+                    lambda d: d.strftime("%d/%m/%Y") if isinstance(d, date) else "—"
+                )
+                detail["Desvio (dias)"] = detail["Desvío días"].apply(
+                    lambda x: "—" if pd.isna(x) else int(x)
+                )
+
+                with st.expander("Ver histórico anual detalhado", expanded=False):
+                    st.dataframe(
+                        detail[
+                            [
+                                "Mês",
+                                "Data prevista",
+                                "Data de término",
+                                "Estado anual",
+                                "Desvio (dias)",
+                                "Código",
+                                "Estado tarefa",
+                                "Avance %",
+                            ]
+                        ].rename(
+                            columns={
+                                "Estado anual": "Cumprimento",
+                                "Estado tarefa": "Estado atual",
+                                "Avance %": "Avanço %",
+                            }
+                        ),
+                        hide_index=True,
+                        use_container_width=True,
+                    )
 
 
 # ============================================================
