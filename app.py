@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.22"
+APP_VERSION = "V2.23"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -156,6 +156,7 @@ AREAS = {
     "Biológico": "BIO",
     "Fertilizante": "FER",
     "Adjuvante": "ADJ",
+    "Solos": "SOL",
     "Servicios": "SER",
 }
 
@@ -208,7 +209,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.22
+# CSS GENERAL · V2.23
 # ============================================================
 
 st.markdown(
