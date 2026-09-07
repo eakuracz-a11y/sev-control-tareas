@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.21"
+APP_VERSION = "V2.22"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,7 +208,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.21
+# CSS GENERAL · V2.22
 # ============================================================
 
 st.markdown(
@@ -4307,7 +4307,18 @@ elif page == "Tareas":
             )
 
             st.markdown("#### Fechas y planificación")
-            f1, f2, f3 = st.columns(3)
+            st.caption(
+                "Todas las fechas pueden modificarse directamente. "
+                "Inicio, final prevista y final real pueden quedar vacías."
+            )
+
+            selected_finished = pd.to_datetime(
+                selected.get("finished_at"),
+                errors="coerce",
+            )
+
+            f1, f2, f3, f4 = st.columns(4)
+
             edit_requested = f1.date_input(
                 "Fecha de solicitud",
                 value=(
@@ -4316,28 +4327,44 @@ elif page == "Tareas":
                     else date.today()
                 ),
                 format="DD/MM/YYYY",
+                key=f"edit_requested_{task_id}",
             )
 
-            use_start = f2.checkbox(
-                "Definir inicio",
-                value=not pd.isna(selected_start),
-            )
             edit_start = f2.date_input(
                 "Fecha de inicio",
-                value=(selected_start.date() if not pd.isna(selected_start) else date.today()),
+                value=(
+                    selected_start.date()
+                    if not pd.isna(selected_start)
+                    else None
+                ),
                 format="DD/MM/YYYY",
-                disabled=not use_start,
+                key=f"edit_start_{task_id}",
             )
 
-            use_due = f3.checkbox(
-                "Definir final",
-                value=not pd.isna(selected_due),
-            )
             edit_due = f3.date_input(
-                "Fecha de finalización",
-                value=(selected_due.date() if not pd.isna(selected_due) else date.today()),
+                "Finalización prevista",
+                value=(
+                    selected_due.date()
+                    if not pd.isna(selected_due)
+                    else None
+                ),
                 format="DD/MM/YYYY",
-                disabled=not use_due,
+                key=f"edit_due_{task_id}",
+            )
+
+            edit_finished = f4.date_input(
+                "Finalización real",
+                value=(
+                    selected_finished.date()
+                    if not pd.isna(selected_finished)
+                    else None
+                ),
+                format="DD/MM/YYYY",
+                key=f"edit_finished_{task_id}",
+                help=(
+                    "Fecha real en que se completó la tarea. "
+                    "Se utiliza para el control de cumplimiento y calendario anual."
+                ),
             )
 
             st.markdown("#### Avance y recurrencia")
@@ -4423,14 +4450,16 @@ elif page == "Tareas":
         if save_changes or close_action:
             if not edit_title.strip():
                 st.error("La tarea no puede quedar sin nombre.")
-            elif use_start and use_due and edit_due < edit_start:
-                st.error("La fecha final no puede ser anterior a la fecha de inicio.")
+            elif edit_start is not None and edit_due is not None and edit_due < edit_start:
+                st.error("La fecha final prevista no puede ser anterior a la fecha de inicio.")
+            elif edit_finished is not None and edit_start is not None and edit_finished < edit_start:
+                st.error("La fecha real de finalización no puede ser anterior a la fecha de inicio.")
             else:
                 new_status = "Cerrada" if close_action else edit_status
                 new_progress = 100 if close_action or new_status == "Cerrada" else int(edit_progress)
 
-                start_value = edit_start.isoformat() if use_start else None
-                due_value = edit_due.isoformat() if use_due else None
+                start_value = edit_start.isoformat() if edit_start is not None else None
+                due_value = edit_due.isoformat() if edit_due is not None else None
                 requested_value = edit_requested.isoformat()
                 maintenance_value = (
                     None
@@ -4445,15 +4474,31 @@ elif page == "Tareas":
                 was_closed = current_status == "Cerrada"
                 will_be_closed = new_status == "Cerrada"
                 closed_at = selected.get("closed_at")
-                finished_at = selected.get("finished_at")
+
+                # V2.22: la fecha real de terminación es editable por el administrador.
+                if edit_finished is not None:
+                    previous_finished = pd.to_datetime(
+                        selected.get("finished_at"),
+                        errors="coerce",
+                    )
+                    if not pd.isna(previous_finished):
+                        finish_time = previous_finished.time()
+                    else:
+                        finish_time = datetime.now().time().replace(microsecond=0)
+
+                    finished_at = datetime.combine(
+                        edit_finished,
+                        finish_time,
+                    ).isoformat()
+                else:
+                    finished_at = None
 
                 if will_be_closed:
                     closed_at = closed_at or datetime.now().isoformat()
-                    finished_at = finished_at or datetime.now().isoformat()
+                    if finished_at is None:
+                        finished_at = datetime.now().isoformat()
                 elif was_closed:
                     closed_at = None
-                    if new_progress < 100:
-                        finished_at = None
 
                 c.execute(
                     """
@@ -4503,7 +4548,8 @@ elif page == "Tareas":
                 changed_summary = (
                     f"Edición completa. Responsable: {person_names.get(int(edit_assignee), edit_assignee)}; "
                     f"estado: {new_status}; prioridad: {edit_priority}; avance: {new_progress}%; "
-                    f"inicio: {start_value or 'sin fecha'}; final: {due_value or 'sin fecha'}."
+                    f"inicio: {start_value or 'sin fecha'}; final prevista: {due_value or 'sin fecha'}; "
+                    f"final real: {finished_at or 'sin fecha'}."
                 )
                 log_event(
                     c,
