@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.19"
+APP_VERSION = "V2.20"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,7 +208,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.19
+# CSS GENERAL · V2.20
 # ============================================================
 
 st.markdown(
@@ -759,6 +759,100 @@ hr {{
     .sev-action-title {{ grid-column:1 / -1; }}
     .sev-action-progress {{ text-align:left !important; }}
 }}
+
+.sev-cal-note {{
+    background:linear-gradient(135deg,#F2F8F5 0%,#EAF5EF 100%);
+    border:1px solid #CFE2D7;
+    border-left:4px solid {BRAND_GREEN};
+    border-radius:12px;
+    padding:.68rem .78rem;
+    min-height:68px;
+    color:{BRAND_DARK};
+    font-size:.73rem;
+    line-height:1.35;
+}}
+.sev-cal-note strong {{ color:{BRAND_GREEN}; }}
+.sev-cal-legend {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:12px;
+    padding:.68rem .72rem;
+    margin-bottom:.55rem;
+}}
+.sev-cal-side-title {{
+    color:{BRAND_DARK};
+    font-size:.78rem;
+    font-weight:820;
+    margin-bottom:.38rem;
+}}
+.sev-cal-legend-row {{
+    display:flex;
+    align-items:center;
+    gap:.42rem;
+    padding:.16rem 0;
+    color:#64766D;
+    font-size:.68rem;
+}}
+.sev-cal-dot {{
+    width:9px;height:9px;border-radius:50%;flex:0 0 9px;
+}}
+.sev-cal-summary {{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.38rem;
+}}
+.sev-cal-stat {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:10px;
+    padding:.48rem .52rem;
+}}
+.sev-cal-stat .n {{
+    color:{BRAND_DARK};font-size:1rem;font-weight:840;line-height:1;
+}}
+.sev-cal-stat .t {{
+    color:#74857D;font-size:.62rem;font-weight:690;margin-top:.14rem;
+}}
+.sev-cal-day {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:11px;
+    padding:.48rem .52rem;
+    min-height:112px;
+    margin-bottom:.42rem;
+}}
+.sev-cal-today {{
+    background:#F1FAF5;
+    border:1px solid #8BC9A6;
+    box-shadow:inset 0 0 0 1px #D7EFE1;
+}}
+.sev-cal-daynum {{
+    display:flex;justify-content:space-between;align-items:center;
+    color:{BRAND_DARK};font-size:.76rem;font-weight:840;margin-bottom:.30rem;
+}}
+.sev-cal-today-tag {{
+    color:{BRAND_GREEN};background:#E4F5EB;border-radius:999px;
+    padding:.10rem .34rem;font-size:.57rem;font-weight:800;
+}}
+.sev-cal-event {{
+    border-radius:7px;padding:.24rem .30rem;margin:.20rem 0;
+    font-size:.61rem;line-height:1.20;overflow:hidden;
+}}
+.sev-cal-event-title {{
+    font-weight:760;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}}
+.sev-cal-event-meta {{ margin-top:.10rem;opacity:.84;font-size:.56rem; }}
+.sev-cal-green {{ background:#E8F6ED;color:#176B43;border-left:3px solid #1B8A55; }}
+.sev-cal-blue {{ background:#EAF3FB;color:#28618C;border-left:3px solid #438BC3; }}
+.sev-cal-yellow {{ background:#FFF6DE;color:#8A650A;border-left:3px solid #E3A719; }}
+.sev-cal-red {{ background:#FCEBE8;color:#9A3D35;border-left:3px solid #D45145; }}
+.sev-cal-gray {{ background:#F2F5F3;color:#6C7B73;border-left:3px solid #A9B5AF; }}
+.sev-cal-empty {{ color:#A0ADA6;font-size:.63rem;margin-top:.55rem; }}
+.sev-cal-weekhead {{
+    text-align:center;color:#53685D;font-size:.67rem;font-weight:800;
+    padding:.16rem 0 .28rem 0;
+}}
+
 @media (max-width: 768px) {{
     .sev-action-summary {{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }}
     .sev-year-grid {{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }}
@@ -2790,30 +2884,90 @@ def calendar_events_for_month(tasks_df, month_start):
     return events
 
 
+def _calendar_event_style(item, current_day):
+    status = str(item.get("status") or "")
+    kind = str(item.get("kind") or "")
+
+    if status == "Cerrada":
+        return "green", "Cumplida"
+    if status == "Terminada - espera cierre":
+        return "blue", "Espera cierre"
+    if status == "En ejecución":
+        return "blue", "En ejecución"
+    if kind == "recurrence":
+        return "blue", "Recurrente"
+    if current_day < date.today() and status not in ["Cerrada", "Terminada - espera cierre"]:
+        return "red", "Vencida"
+    if current_day <= date.today() + timedelta(days=7):
+        return "yellow", "Próxima"
+    return "gray", status or "Programada"
+
+
 def render_month_calendar(tasks_df, month_start):
     events = calendar_events_for_month(tasks_df, month_start)
     headers = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
     header_cols = st.columns(7)
     for col, label in zip(header_cols, headers):
-        col.markdown(f"**{label}**")
+        col.markdown(
+            f'<div class="sev-cal-weekhead">{label}</div>',
+            unsafe_allow_html=True,
+        )
+
     for week in calendar.monthcalendar(month_start.year, month_start.month):
         cols = st.columns(7)
         for col, day_number in zip(cols, week):
             with col:
                 if day_number == 0:
-                    st.markdown("&nbsp;", unsafe_allow_html=True)
+                    st.markdown(
+                        '<div style="min-height:112px;margin-bottom:.42rem;"></div>',
+                        unsafe_allow_html=True,
+                    )
                     continue
+
                 current_day = date(month_start.year, month_start.month, day_number)
                 day_events = events.get(current_day, [])
-                with st.container(border=True):
-                    st.markdown(f"**{day_number}**")
-                    if not day_events:
-                        st.caption("—")
-                    else:
-                        for item in day_events[:4]:
-                            st.caption(item["label"][:52])
-                        if len(day_events) > 4:
-                            st.caption(f"+ {len(day_events) - 4} más")
+                today_class = " sev-cal-today" if current_day == date.today() else ""
+                today_tag = (
+                    '<span class="sev-cal-today-tag">HOY</span>'
+                    if current_day == date.today()
+                    else ""
+                )
+
+                event_html = []
+                if not day_events:
+                    event_html.append('<div class="sev-cal-empty">Sin tareas</div>')
+                else:
+                    for item in day_events[:3]:
+                        style, state_label = _calendar_event_style(item, current_day)
+                        raw_label = str(item.get("label") or "")
+                        clean_label = raw_label.replace("🔔 ", "").replace("🔁 ", "")
+                        if len(clean_label) > 42:
+                            clean_label = clean_label[:40].rstrip() + "…"
+                        type_label = "Recurrente" if item.get("kind") == "recurrence" else state_label
+                        event_html.append(
+                            '<div class="sev-cal-event sev-cal-{style}">'
+                            '<div class="sev-cal-event-title">{title}</div>'
+                            '<div class="sev-cal-event-meta">{meta}</div>'
+                            '</div>'.format(
+                                style=style,
+                                title=clean_label,
+                                meta=type_label,
+                            )
+                        )
+                    if len(day_events) > 3:
+                        event_html.append(
+                            f'<div class="sev-cal-empty">+ {len(day_events)-3} más</div>'
+                        )
+
+                cell_html = (
+                    f'<div class="sev-cal-day{today_class}">'
+                    f'<div class="sev-cal-daynum"><span>{day_number}</span>{today_tag}</div>'
+                    + "".join(event_html)
+                    + "</div>"
+                )
+                st.markdown(cell_html, unsafe_allow_html=True)
+
 
 
 def due_alerts(tasks_df, reference=None, horizon_days=7):
@@ -4468,51 +4622,227 @@ elif page == "Tareas":
 
 elif page == "Calendario / Gantt":
 
-    section("Calendario operativo", "Tareas rutinarias, fechas de finalización, alertas y Gantt de cumplimiento")
-    cal1, cal2 = st.columns([1.0, 2.3])
-    month_pick = cal1.date_input("Mes a consultar", value=date.today().replace(day=1), format="DD/MM/YYYY", key="calendar_month_v211")
-    month_start = date(month_pick.year, month_pick.month, 1)
-    cal2.info("🔁 = tarea rutinaria / recurrente · 🔔 = fecha de finalización. Las recurrencias se muestran aunque la instancia futura todavía no haya sido creada en la base.")
-    month_names = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"]
-    st.markdown(f"### {month_names[month_start.month - 1].capitalize()} {month_start.year}")
-    render_month_calendar(tasks, month_start)
+    section(
+        "Calendario operativo",
+        "Tareas rutinarias, fechas de finalización, estados y Gantt de cumplimiento",
+    )
 
-    section("Avisos de finalización", "Tareas vencidas, que vencen hoy o dentro de los próximos 7 días")
+    top1, top2 = st.columns([1.05, 2.35], gap="medium")
+
+    month_pick = top1.date_input(
+        "Mes a consultar",
+        value=date.today().replace(day=1),
+        format="DD/MM/YYYY",
+        key="calendar_month_v220",
+    )
+    month_start = date(month_pick.year, month_pick.month, 1)
+
+    top2.markdown(
+        '''
+        <div class="sev-cal-note">
+            <strong>Calendario de seguimiento</strong><br>
+            Las tareas recurrentes aparecen en su fecha prevista aunque la próxima
+            instancia todavía no haya sido creada. Cada actividad se identifica por
+            color según su estado operativo.
+        </div>
+        ''',
+        unsafe_allow_html=True,
+    )
+
+    month_names = [
+        "enero","febrero","marzo","abril","mayo","junio",
+        "julio","agosto","septiembre","octubre","noviembre","diciembre"
+    ]
+
+    month_events = calendar_events_for_month(tasks, month_start)
+    flat_events = [
+        (day_key, event)
+        for day_key, event_list in month_events.items()
+        for event in event_list
+    ]
+
+    total_month = len(flat_events)
+    closed_month = sum(
+        1 for _, event in flat_events
+        if str(event.get("status") or "") == "Cerrada"
+    )
+    running_month = sum(
+        1 for _, event in flat_events
+        if str(event.get("status") or "") in ["En ejecución", "Terminada - espera cierre"]
+    )
+    overdue_month = sum(
+        1 for day_key, event in flat_events
+        if day_key < date.today()
+        and str(event.get("status") or "") not in ["Cerrada", "Terminada - espera cierre"]
+        and event.get("kind") != "recurrence"
+    )
+    recurrent_month = sum(
+        1 for _, event in flat_events
+        if event.get("kind") == "recurrence"
+    )
+
+    cal_main, cal_side = st.columns([4.15, 1.05], gap="medium")
+
+    with cal_main:
+        st.markdown(
+            f"### {month_names[month_start.month - 1].capitalize()} {month_start.year}"
+        )
+        render_month_calendar(tasks, month_start)
+
+    with cal_side:
+        st.markdown(
+            '''
+            <div class="sev-cal-legend">
+                <div class="sev-cal-side-title">Estado de las tareas</div>
+                <div class="sev-cal-legend-row"><span class="sev-cal-dot" style="background:#1B8A55;"></span>Cerrada / cumplida</div>
+                <div class="sev-cal-legend-row"><span class="sev-cal-dot" style="background:#438BC3;"></span>En ejecución / recurrente</div>
+                <div class="sev-cal-legend-row"><span class="sev-cal-dot" style="background:#E3A719;"></span>Próxima a vencer</div>
+                <div class="sev-cal-legend-row"><span class="sev-cal-dot" style="background:#D45145;"></span>Atrasada / vencida</div>
+                <div class="sev-cal-legend-row"><span class="sev-cal-dot" style="background:#A9B5AF;"></span>Programada / sin estado</div>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f'''
+            <div class="sev-cal-legend">
+                <div class="sev-cal-side-title">Resumen del mes</div>
+                <div class="sev-cal-summary">
+                    <div class="sev-cal-stat"><div class="n">{total_month}</div><div class="t">Eventos</div></div>
+                    <div class="sev-cal-stat"><div class="n">{closed_month}</div><div class="t">Cumplidas</div></div>
+                    <div class="sev-cal-stat"><div class="n">{running_month}</div><div class="t">En curso</div></div>
+                    <div class="sev-cal-stat"><div class="n">{overdue_month}</div><div class="t">Vencidas</div></div>
+                    <div class="sev-cal-stat"><div class="n">{recurrent_month}</div><div class="t">Recurrentes</div></div>
+                </div>
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
+
+        st.caption("Los colores permiten identificar rápidamente qué requiere atención.")
+
+    section(
+        "Avisos de finalización",
+        "Tareas vencidas, que vencen hoy o dentro de los próximos 7 días",
+    )
     due_view = due_alerts(tasks, date.today(), horizon_days=7)
+
     if due_view.empty:
-        st.success("No hay tareas con vencimiento dentro de los próximos 7 días ni tareas vencidas abiertas.")
+        st.success(
+            "No hay tareas con vencimiento dentro de los próximos 7 días ni tareas vencidas abiertas."
+        )
     else:
         overdue_n = int((due_view["Días"] < 0).sum())
         today_n = int((due_view["Días"] == 0).sum())
         soon_n = int(((due_view["Días"] > 0) & (due_view["Días"] <= 7)).sum())
-        d1,d2,d3 = st.columns(3)
-        d1.metric("Vencidas", overdue_n); d2.metric("Vencen hoy", today_n); d3.metric("Próximos 7 días", soon_n)
-        st.dataframe(due_view.drop(columns=["Días"]), hide_index=True, use_container_width=True)
 
-    section("Tareas rutinarias", "Consulta de actividades configuradas con recurrencia")
-    recurrent_view = tasks[tasks["recurrence"].notna() & (tasks["recurrence"].astype(str) != "No")].copy()
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Vencidas", overdue_n)
+        d2.metric("Vencen hoy", today_n)
+        d3.metric("Próximos 7 días", soon_n)
+
+        st.dataframe(
+            due_view.drop(columns=["Días"]),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    section(
+        "Tareas rutinarias",
+        "Consulta de actividades configuradas con recurrencia",
+    )
+    recurrent_view = tasks[
+        tasks["recurrence"].notna()
+        & (tasks["recurrence"].astype(str) != "No")
+    ].copy()
+
     if recurrent_view.empty:
         st.info("No hay tareas rutinarias configuradas.")
     else:
-        recurrent_view["Próxima referencia"] = pd.to_datetime(recurrent_view["due_date"], errors="coerce").dt.strftime("%d/%m/%Y").fillna("—")
-        st.dataframe(recurrent_view[["code","title","assignee","recurrence","recurrence_day","Próxima referencia","status"]].rename(columns={"code":"Código","title":"Tarea","assignee":"Responsable","recurrence":"Recurrencia","recurrence_day":"Día","status":"Estado"}), hide_index=True, use_container_width=True)
+        recurrent_view["Próxima referencia"] = (
+            pd.to_datetime(recurrent_view["due_date"], errors="coerce")
+            .dt.strftime("%d/%m/%Y")
+            .fillna("—")
+        )
+        with st.expander(
+            f"Ver {len(recurrent_view)} tarea(s) recurrente(s)",
+            expanded=False,
+        ):
+            st.dataframe(
+                recurrent_view[
+                    ["code","title","assignee","recurrence",
+                     "recurrence_day","Próxima referencia","status"]
+                ].rename(
+                    columns={
+                        "code":"Código",
+                        "title":"Tarea",
+                        "assignee":"Responsable",
+                        "recurrence":"Recurrencia",
+                        "recurrence_day":"Día",
+                        "status":"Estado",
+                    }
+                ),
+                hide_index=True,
+                use_container_width=True,
+            )
 
-    section("Gantt de cumplimiento", "Incluye cronograma y demora entre asignación y aceptación")
+    section(
+        "Gantt de cumplimiento",
+        "Cronograma, avance y demora entre asignación y aceptación",
+    )
+
     gantt = tasks.copy()
     gantt["Teórico %"] = gantt.apply(theoretical, axis=1)
     gantt["Semáforo"] = gantt.apply(traffic_light, axis=1)
+
     acceptance_rows = gantt.apply(acceptance_metrics, axis=1)
-    acceptance_hours = pd.Series([item["acceptance_hours"] for item in acceptance_rows if item["acceptance_hours"] is not None], dtype=float)
-    accepted_hours = pd.Series([item["acceptance_hours"] for item in acceptance_rows if item["accepted"] and item["acceptance_hours"] is not None], dtype=float)
-    pending_acceptance = int(sum(1 for item in acceptance_rows if not item["accepted"]))
-    accepted_24h = int(sum(1 for item in acceptance_rows if item["accepted"] and item["acceptance_hours"] is not None and item["acceptance_hours"] <= 24))
-    total_accepted = int(sum(1 for item in acceptance_rows if item["accepted"]))
-    a1,a2,a3,a4 = st.columns(4)
+    acceptance_hours = pd.Series(
+        [item["acceptance_hours"] for item in acceptance_rows
+         if item["acceptance_hours"] is not None],
+        dtype=float,
+    )
+    accepted_hours = pd.Series(
+        [item["acceptance_hours"] for item in acceptance_rows
+         if item["accepted"] and item["acceptance_hours"] is not None],
+        dtype=float,
+    )
+    pending_acceptance = int(
+        sum(1 for item in acceptance_rows if not item["accepted"])
+    )
+    accepted_24h = int(
+        sum(
+            1 for item in acceptance_rows
+            if item["accepted"]
+            and item["acceptance_hours"] is not None
+            and item["acceptance_hours"] <= 24
+        )
+    )
+    total_accepted = int(
+        sum(1 for item in acceptance_rows if item["accepted"])
+    )
+
+    a1, a2, a3, a4 = st.columns(4)
     a1.metric("Pendientes de aceptación", pending_acceptance)
-    a2.metric("Demora media", "—" if accepted_hours.empty else f"{accepted_hours.mean():.1f} h")
-    a3.metric("Aceptadas ≤24 h", "—" if total_accepted == 0 else f"{accepted_24h}/{total_accepted}")
-    a4.metric("Mayor demora", "—" if acceptance_hours.empty else (f"{acceptance_hours.max():.1f} h" if acceptance_hours.max()<24 else f"{acceptance_hours.max()/24:.1f} días"))
-    gantt_chart(gantt)
+    a2.metric(
+        "Demora media",
+        "—" if accepted_hours.empty else f"{accepted_hours.mean():.1f} h",
+    )
+    a3.metric(
+        "Aceptadas ≤24 h",
+        "—" if total_accepted == 0 else f"{accepted_24h}/{total_accepted}",
+    )
+    a4.metric(
+        "Mayor demora",
+        "—" if acceptance_hours.empty else (
+            f"{acceptance_hours.max():.1f} h"
+            if acceptance_hours.max() < 24
+            else f"{acceptance_hours.max()/24:.1f} días"
+        ),
+    )
+
+    with st.expander("Abrir vista Gantt", expanded=False):
+        gantt_chart(gantt)
 
 
 # ============================================================
