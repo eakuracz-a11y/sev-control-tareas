@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.16"
+APP_VERSION = "V2.17"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,7 +208,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.16
+# CSS GENERAL · V2.17
 # ============================================================
 
 st.markdown(
@@ -451,6 +451,80 @@ input {{
 
 hr {{
     margin:.56rem 0 !important;
+}}
+
+.sev-action-summary {{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:.48rem;
+    margin:.18rem 0 .52rem 0;
+}}
+.sev-action-pill {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:10px;
+    padding:.48rem .58rem;
+    min-height:58px;
+}}
+.sev-action-pill .n {{
+    color:{BRAND_DARK};
+    font-size:1.08rem;
+    font-weight:820;
+    line-height:1;
+}}
+.sev-action-pill .t {{
+    color:#72837A;
+    font-size:.67rem;
+    font-weight:720;
+    margin-top:.18rem;
+}}
+.sev-ranking-row {{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.55rem;
+    padding:.38rem 0;
+    border-bottom:1px solid #E7ECE8;
+}}
+.sev-ranking-name {{
+    color:{BRAND_DARK};
+    font-size:.76rem;
+    font-weight:730;
+}}
+.sev-ranking-meta {{
+    color:#74847D;
+    font-size:.66rem;
+}}
+.sev-ranking-score {{
+    min-width:48px;
+    text-align:right;
+    color:{BRAND_GREEN};
+    font-size:.92rem;
+    font-weight:820;
+}}
+.sev-progress-row {{ margin:.34rem 0 .50rem 0; }}
+.sev-progress-head {{
+    display:flex;
+    justify-content:space-between;
+    gap:.6rem;
+    color:{BRAND_DARK};
+    font-size:.72rem;
+    font-weight:720;
+    margin-bottom:.16rem;
+}}
+.sev-progress-track {{
+    height:7px;
+    background:#E7ECE8;
+    border-radius:999px;
+    overflow:hidden;
+}}
+.sev-progress-fill {{
+    height:100%;
+    background:{BRAND_GREEN};
+    border-radius:999px;
+}}
+@media (max-width: 768px) {{
+    .sev-action-summary {{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }}
 }}
 
 @media (max-width: 768px) {{
@@ -2466,206 +2540,74 @@ if page == "Tablero":
 
     section(
         "Tablero ejecutivo",
-        "Avance, riesgos, responsables y próximos vencimientos",
+        "Prioridades, ejecución, atención inmediata y próximos vencimientos",
     )
 
-    f1, f2, f3, f4 = (
-        st.columns(
-            4
-        )
-    )
-
-    sector_filter = (
-        f1.selectbox(
-            "Sector",
-            [
-                "Todos",
-                *SECTORES.values(),
-            ],
-        )
-    )
-
-    area_filter = (
-        f2.selectbox(
-            "Área",
-            [
-                "Todas",
-                *AREAS.values(),
-            ],
-        )
-    )
-
-    operator_filter = (
-        f3.selectbox(
-            "Operario",
-            [
-                "Todos",
-                *people[
-                    "name"
-                ].tolist(),
-            ],
-        )
-    )
-
-    status_filter = (
-        f4.selectbox(
-            "Estado",
-            [
-                "Todos",
-                "Pendiente",
-                "Asignada",
-                "Aceptada",
-                "En ejecución",
-                "Terminada - espera cierre",
-                "Cerrada",
-            ],
-        )
+    f1, f2, f3, f4 = st.columns(4)
+    sector_filter = f1.selectbox("Sector", ["Todos", *SECTORES.values()], key="dash_sector_v217")
+    area_filter = f2.selectbox("Área", ["Todas", *AREAS.values()], key="dash_area_v217")
+    operator_filter = f3.selectbox("Operario", ["Todos", *people["name"].tolist()], key="dash_operator_v217")
+    status_filter = f4.selectbox(
+        "Estado",
+        ["Todos", "Pendiente", "Asignada", "Aceptada", "En ejecución",
+         "Terminada - espera cierre", "Cerrada"],
+        key="dash_status_v217",
     )
 
     view = tasks.copy()
+    if sector_filter != "Todos":
+        view = view[view["sector"] == sector_filter]
+    if area_filter != "Todas":
+        view = view[view["area"] == area_filter]
+    if operator_filter != "Todos":
+        view = view[view["assignee"] == operator_filter]
+    if status_filter != "Todos":
+        view = view[view["status"] == status_filter]
 
-    if (
-        sector_filter
-        != "Todos"
-    ):
+    view = view.copy()
+    view["Teórico %"] = view.apply(theoretical, axis=1)
+    view["Desvío pp"] = view.apply(schedule_delta, axis=1)
+    view["Semáforo"] = view.apply(traffic_light, axis=1)
 
-        view = view[
-            view[
-                "sector"
-            ]
-            == sector_filter
-        ]
+    # V2.17: los indicadores operativos usan sólo tareas abiertas.
+    active_view = view[view["status"] != "Cerrada"].copy()
+    open_count = len(active_view)
+    execution_count = int((active_view["status"] == "En ejecución").sum())
+    waiting_close = int((active_view["status"] == "Terminada - espera cierre").sum())
 
-    if (
-        area_filter
-        != "Todas"
-    ):
-
-        view = view[
-            view[
-                "area"
-            ]
-            == area_filter
-        ]
-
-    if (
-        operator_filter
-        != "Todos"
-    ):
-
-        view = view[
-            view[
-                "assignee"
-            ]
-            == operator_filter
-        ]
-
-    if (
-        status_filter
-        != "Todos"
-    ):
-
-        view = view[
-            view[
-                "status"
-            ]
-            == status_filter
-        ]
-
-    view[
-        "Teórico %"
-    ] = view.apply(
-        theoretical,
-        axis=1,
+    pending_acceptance_mask = (
+        active_view["status"].isin(["Asignada", "Pendiente"])
+        & active_view["accepted_at"].isna()
     )
+    pending_acceptance_count = int(pending_acceptance_mask.sum())
 
-    view[
-        "Desvío pp"
-    ] = view.apply(
-        schedule_delta,
-        axis=1,
+    overdue_mask = active_view["Semáforo"].astype(str).str.contains(
+        "🔴 Atrasada|🔴 Vencida", regex=True
     )
+    overdue_count = int(overdue_mask.sum())
 
-    view[
-        "Semáforo"
-    ] = view.apply(
-        traffic_light,
-        axis=1,
+    attention_mask = active_view["Semáforo"].astype(str).str.contains(
+        "🟡 Atención", regex=False
     )
+    attention_count = int(attention_mask.sum())
 
-    open_count = int(
-        (
-            view[
-                "status"
-            ]
-            != "Cerrada"
-        ).sum()
+    on_time_mask = active_view["Semáforo"].astype(str).str.contains(
+        "🟢 En término", regex=False
     )
-
-    execution_count = int(
-        (
-            view[
-                "status"
-            ]
-            == "En ejecución"
-        ).sum()
-    )
-
-    overdue_count = int(
-        view[
-            "Semáforo"
-        ]
-        .astype(
-            str
-        )
-        .str.contains(
-            "Vencida|Atrasada"
-        )
-        .sum()
-    )
-
-    waiting_close = int(
-        (
-            view[
-                "status"
-            ]
-            == "Terminada - espera cierre"
-        ).sum()
-    )
+    on_time_count = int(on_time_mask.sum())
 
     requested_month = int(
         (
-            pd.to_datetime(
-                view[
-                    "requested"
-                ],
-                errors="coerce",
-            )
-            .dt.to_period(
-                "M"
-            )
-            == pd.Period(
-                date.today(),
-                freq="M",
-            )
+            pd.to_datetime(view["requested"], errors="coerce").dt.to_period("M")
+            == pd.Period(date.today(), freq="M")
         ).sum()
-    )
-
-    pending_acceptance_count = int(
-        (
-            view["status"].isin(["Asignada", "Pendiente"])
-            & view["accepted_at"].isna()
-        ).sum()
-    )
-    on_time_count = int(
-        view["Semáforo"].astype(str).str.contains("🟢").sum()
     )
 
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Total activas", open_count, delta=f"{requested_month} solicitadas este mes")
     k2.metric("En ejecución", execution_count)
-    k3.metric("Pend. aceptación", pending_acceptance_count)
-    k4.metric("Con atraso", overdue_count)
+    k3.metric("Sin aceptar", pending_acceptance_count)
+    k4.metric("Atrasadas", overdue_count)
     k5.metric("En término", on_time_count)
 
     st.markdown(
@@ -2674,192 +2616,92 @@ if page == "Tablero":
         unsafe_allow_html=True,
     )
 
-    health_base = max(open_count, 1)
-    health_pct = round(100 * on_time_count / health_base)
-    risk_count = overdue_count + pending_acceptance_count
-    risk_label = (
-        "Sin alertas críticas"
-        if risk_count == 0
-        else f"{risk_count} foco(s) inmediato(s)"
-    )
+    section("Atención inmediata", "Lo que requiere decisión o seguimiento ahora")
+    left_action, right_hitos = st.columns([3.15, 1.15], gap="medium")
 
-    st.markdown(
-        f"""
-        <div class="sev-exec-grid">
-            <div class="sev-exec-card">
-                <div class="sev-exec-kicker">Salud operativa</div>
-                <div class="sev-exec-value">{health_pct}%</div>
-                <div class="sev-exec-note">tareas activas en condición verde</div>
+    with left_action:
+        st.markdown(
+            f"""
+            <div class="sev-action-summary">
+                <div class="sev-action-pill"><div class="n">{overdue_count}</div><div class="t">Atrasadas / vencidas</div></div>
+                <div class="sev-action-pill"><div class="n">{attention_count}</div><div class="t">En atención</div></div>
+                <div class="sev-action-pill"><div class="n">{pending_acceptance_count}</div><div class="t">Sin aceptar</div></div>
+                <div class="sev-action-pill"><div class="n">{waiting_close}</div><div class="t">Esperando cierre</div></div>
             </div>
-            <div class="sev-exec-card">
-                <div class="sev-exec-kicker">Foco inmediato</div>
-                <div class="sev-exec-value">{risk_label}</div>
-                <div class="sev-exec-note">{overdue_count} con atraso · {pending_acceptance_count} sin aceptar</div>
-            </div>
-            <div class="sev-exec-card">
-                <div class="sev-exec-kicker">Cierre administrativo</div>
-                <div class="sev-exec-value">{waiting_close}</div>
-                <div class="sev-exec-note">tarea(s) terminada(s) esperando cierre</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # --------------------------------------------------------
-    # CUMPLIMIENTO POR RESPONSABLE · V2.5
-    # --------------------------------------------------------
-    section(
-        "Cumplimiento por responsable",
-        "Ranking compacto de desempeño y alertas por responsable",
-    )
-
-    if view.empty:
-        st.info("No hay tareas para calcular cumplimiento con los filtros seleccionados.")
-    else:
-        person_rows = []
-
-        for person_name, person_tasks in view.groupby("assignee", dropna=False):
-            total = len(person_tasks)
-            closed = int((person_tasks["status"] == "Cerrada").sum())
-            waiting = int((person_tasks["status"] == "Terminada - espera cierre").sum())
-            on_time = int(
-                person_tasks["Semáforo"].astype(str).str.contains(
-                    "🟢 En término|🟢 Cerrada", regex=True
-                ).sum()
-            )
-            attention_n = int(person_tasks["Semáforo"].astype(str).str.contains("🟡").sum())
-            late_n = int(person_tasks["Semáforo"].astype(str).str.contains("🔴").sum())
-            no_schedule = int(person_tasks["Semáforo"].astype(str).str.contains("⚪").sum())
-
-            evaluable = max(total - no_schedule, 0)
-            compliance = (100.0 * on_time / evaluable) if evaluable else 0.0
-            avg_real = float(person_tasks["progress"].fillna(0).mean()) if total else 0.0
-            theoretical_values = pd.to_numeric(person_tasks["Teórico %"], errors="coerce").dropna()
-            avg_theoretical = float(theoretical_values.mean()) if not theoretical_values.empty else None
-
-            if late_n > 0:
-                status_label = "🔴 Requiere acción"
-            elif attention_n > 0:
-                status_label = "🟡 Atención"
-            elif waiting > 0:
-                status_label = "🔵 Espera cierre"
-            elif evaluable > 0:
-                status_label = "🟢 En término"
-            else:
-                status_label = "⚪ Sin cronograma"
-
-            person_rows.append({
-                "Responsable": str(person_name),
-                "Estado": status_label,
-                "Tareas": total,
-                "Cerradas": closed,
-                "En término": on_time,
-                "Atención": attention_n,
-                "Atrasadas": late_n,
-                "Espera cierre": waiting,
-                "Cumplimiento %": round(compliance, 1),
-                "Avance real %": round(avg_real, 1),
-                "Avance teórico %": (round(avg_theoretical, 1) if avg_theoretical is not None else None),
-            })
-
-        person_summary = pd.DataFrame(person_rows).sort_values(
-            ["Cumplimiento %", "Atrasadas", "Atención"],
-            ascending=[False, True, True],
+            """,
+            unsafe_allow_html=True,
         )
 
-        if not person_summary.empty:
-            top_cols = st.columns(min(3, len(person_summary)))
-            for idx, (_, person_row) in enumerate(person_summary.head(3).iterrows()):
-                with top_cols[idx]:
-                    st.metric(
-                        person_row["Responsable"],
-                        f"{person_row['Cumplimiento %']:.0f}%",
-                        delta=(
-                            f"{int(person_row['Atrasadas'])} atrasada(s)"
-                            if person_row["Atrasadas"] > 0
-                            else person_row["Estado"]
-                        ),
-                    )
+        urgent = active_view.copy()
+        urgent["_due"] = pd.to_datetime(urgent["due_date"], errors="coerce")
+        urgent["_pending_acceptance"] = (
+            urgent["status"].isin(["Asignada", "Pendiente"])
+            & urgent["accepted_at"].isna()
+        )
+        urgent["_late"] = urgent["Semáforo"].astype(str).str.contains(
+            "🔴 Atrasada|🔴 Vencida", regex=True
+        )
+        urgent["_attention"] = urgent["Semáforo"].astype(str).str.contains(
+            "🟡 Atención", regex=False
+        )
+        urgent["_waiting_close"] = urgent["status"] == "Terminada - espera cierre"
+        urgent["_urgent"] = (
+            urgent["_late"] | urgent["_attention"]
+            | urgent["_pending_acceptance"] | urgent["_waiting_close"]
+        )
+        urgent = urgent[urgent["_urgent"]].copy()
 
-            chart_people = person_summary.copy()
-            fig_people = px.bar(
-                chart_people.sort_values("Cumplimiento %"),
-                x="Cumplimiento %",
-                y="Responsable",
-                orientation="h",
-                text="Cumplimiento %",
-                hover_data={
-                    "Tareas": True,
-                    "En término": True,
-                    "Atención": True,
-                    "Atrasadas": True,
-                    "Avance real %": True,
-                    "Avance teórico %": True,
-                },
+        def _action_label(row):
+            if bool(row["_late"]):
+                return "🔴 Atrasada"
+            if bool(row["_pending_acceptance"]):
+                return "🟠 Sin aceptar"
+            if bool(row["_attention"]):
+                return "🟡 Atención"
+            if bool(row["_waiting_close"]):
+                return "🔵 Espera cierre"
+            return "⚪ Revisar"
+
+        if urgent.empty:
+            st.success("Sin acciones críticas en la vista seleccionada.")
+        else:
+            urgent["Acción"] = urgent.apply(_action_label, axis=1)
+            urgent["Vence"] = urgent["_due"].dt.strftime("%d/%m/%Y").fillna("—")
+            urgent["Avance %"] = pd.to_numeric(
+                urgent["progress"], errors="coerce"
+            ).fillna(0).round(0)
+            priority_order = {"Crítica": 0, "Alta": 1, "Media": 2, "Baja": 3}
+            urgent["_prio"] = urgent["priority"].map(priority_order).fillna(9)
+            urgent = urgent.sort_values(
+                ["_late", "_pending_acceptance", "_attention", "_due", "_prio"],
+                ascending=[False, False, False, True, True],
+                na_position="last",
             )
-            fig_people.update_traces(
-                marker_color=BRAND_GREEN,
-                texttemplate="%{text:.0f}%",
-                textposition="outside",
-                cliponaxis=False,
+            urgent_display = urgent[
+                ["Acción", "title", "assignee", "priority", "Vence", "Avance %"]
+            ].rename(columns={
+                "title": "Tarea",
+                "assignee": "Responsable",
+                "priority": "Prioridad",
+            })
+            st.dataframe(
+                urgent_display.head(7),
+                hide_index=True,
+                use_container_width=True,
+                height=min(315, 72 + 35 * min(len(urgent_display), 7)),
             )
-            fig_people.update_layout(
-                height=max(220, min(360, 42 * len(chart_people) + 78)),
-                margin=dict(l=10, r=45, t=5, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="#FFFFFF",
-                showlegend=False,
-                xaxis=dict(
-                    title="Cumplimiento (%)",
-                    range=[0, 108],
-                    gridcolor="#E8ECE9",
-                ),
-                yaxis=dict(title=None),
-                font=dict(color=BRAND_DARK),
-            )
-            st.plotly_chart(fig_people, use_container_width=True)
+            if len(urgent_display) > 7:
+                with st.expander(f"Ver las {len(urgent_display)} acciones pendientes"):
+                    st.dataframe(urgent_display, hide_index=True, use_container_width=True)
 
-            with st.expander("Ver detalle por responsable", expanded=False):
-                st.dataframe(
-                    person_summary,
-                    hide_index=True,
-                    use_container_width=True,
-                    column_config={
-                        "Cumplimiento %": st.column_config.ProgressColumn(
-                            "Cumplimiento %", min_value=0, max_value=100, format="%.0f%%"
-                        ),
-                        "Avance real %": st.column_config.ProgressColumn(
-                            "Avance real %", min_value=0, max_value=100, format="%.0f%%"
-                        ),
-                    },
-                )
-
-    with st.expander("Avance real vs. teórico por tarea", expanded=False):
-        st.caption("Comparación individual contra el avance esperado por fecha")
-        progress_chart(view)
-
-    section(
-        "Cronograma de cumplimiento · Gantt",
-        "Fechas, estado y vencimientos clave en una vista ejecutiva",
-    )
-
-    gantt_col, hitos_col = st.columns([4.25, 1.15], gap="medium")
-
-    with gantt_col:
-        gantt_chart(view)
-
-    with hitos_col:
+    with right_hitos:
         st.markdown(
             '<div class="sev-panel-title"><span class="sev-dot"></span>Próximos hitos</div>',
             unsafe_allow_html=True,
         )
-        hitos = view.copy()
+        hitos = active_view.copy()
         hitos["_due"] = pd.to_datetime(hitos["due_date"], errors="coerce")
-        hitos = hitos[
-            hitos["_due"].notna()
-            & (hitos["status"] != "Cerrada")
-        ].sort_values("_due").head(6)
+        hitos = hitos[hitos["_due"].notna()].sort_values("_due").head(6)
 
         if hitos.empty:
             st.caption("No hay próximos vencimientos.")
@@ -2867,20 +2709,22 @@ if page == "Tablero":
             for _, hito in hitos.iterrows():
                 due_hito = hito["_due"].date()
                 dias = (due_hito - date.today()).days
-
                 if dias < 0:
                     plazo = f"Vencida {abs(dias)} d"
                     state_color = COLOR_DANGER
                 elif dias == 0:
                     plazo = "Hoy"
                     state_color = COLOR_WARNING
+                elif dias == 1:
+                    plazo = "Mañana"
+                    state_color = COLOR_WARNING
                 else:
-                    plazo = f"{dias} d"
+                    plazo = f"En {dias} d"
                     state_color = BRAND_GREEN
 
                 title_hito = str(hito.get("title") or "")
-                if len(title_hito) > 38:
-                    title_hito = title_hito[:36].rstrip() + "…"
+                if len(title_hito) > 34:
+                    title_hito = title_hito[:32].rstrip() + "…"
 
                 st.markdown(
                     f"""
@@ -2897,205 +2741,154 @@ if page == "Tablero":
                 )
 
     section(
-        "Tareas que requieren atención",
-        "Prioridad inmediata para tareas amarillas y rojas",
+        "Avance operativo",
+        "Progreso de tareas activas y desempeño resumido por responsable",
     )
+    progress_col, ranking_col = st.columns([3.15, 1.15], gap="medium")
 
-    attention = view[
-        view[
-            "Semáforo"
-        ]
-        .astype(
-            str
+    with progress_col:
+        progress_tasks = active_view.copy()
+        progress_tasks["_due"] = pd.to_datetime(progress_tasks["due_date"], errors="coerce")
+        progress_tasks["_progress"] = pd.to_numeric(
+            progress_tasks["progress"], errors="coerce"
+        ).fillna(0).clip(0, 100)
+        progress_tasks = progress_tasks.sort_values(
+            ["_due", "_progress"], ascending=[True, False], na_position="last"
+        ).head(8)
+
+        if progress_tasks.empty:
+            st.info("No hay tareas activas para mostrar.")
+        else:
+            for _, task_row in progress_tasks.iterrows():
+                title = str(task_row.get("title") or "Tarea")
+                if len(title) > 58:
+                    title = title[:56].rstrip() + "…"
+                owner = str(task_row.get("assignee") or "—")
+                pct = float(task_row["_progress"])
+                status_txt = str(task_row.get("Semáforo") or "")
+                st.markdown(
+                    f"""
+                    <div class="sev-progress-row">
+                        <div class="sev-progress-head">
+                            <span>{title}</span>
+                            <span>{pct:.0f}% · {owner} · {status_txt}</span>
+                        </div>
+                        <div class="sev-progress-track">
+                            <div class="sev-progress-fill" style="width:{pct:.0f}%"></div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        with st.expander("Comparar avance real vs. teórico", expanded=False):
+            progress_chart(view)
+
+    with ranking_col:
+        st.markdown(
+            '<div class="sev-panel-title"><span class="sev-dot"></span>Responsables</div>',
+            unsafe_allow_html=True,
         )
-        .str.contains(
-            "🔴|🟡"
-        )
-    ].copy()
+        person_rows = []
+        for person_name, person_tasks in view.groupby("assignee", dropna=False):
+            active_person = person_tasks[person_tasks["status"] != "Cerrada"].copy()
+            total_active = len(active_person)
+            if total_active == 0:
+                continue
 
-    if attention.empty:
+            late_n = int(active_person["Semáforo"].astype(str).str.contains(
+                "🔴 Atrasada|🔴 Vencida", regex=True
+            ).sum())
+            attention_n = int(active_person["Semáforo"].astype(str).str.contains(
+                "🟡 Atención", regex=False
+            ).sum())
+            green_n = int(active_person["Semáforo"].astype(str).str.contains(
+                "🟢 En término", regex=False
+            ).sum())
+            evaluable_n = int((~active_person["Semáforo"].astype(str).str.contains(
+                "⚪ Sin cronograma", regex=False
+            )).sum())
+            score = round(100 * green_n / evaluable_n) if evaluable_n > 0 else 0
+            score = max(0, min(100, score))
 
-        st.success(
-            "No hay tareas con alertas en el filtro seleccionado."
-        )
+            person_rows.append({
+                "Responsable": str(person_name),
+                "Cumplimiento": score,
+                "Activas": total_active,
+                "Alertas": late_n + attention_n,
+            })
 
-    else:
-
-        attention[
-            "Inicio"
-        ] = (
-            pd.to_datetime(
-                attention[
-                    "start_date"
-                ],
-                errors="coerce",
+        person_summary = pd.DataFrame(person_rows)
+        if person_summary.empty:
+            st.caption("Sin responsables con tareas activas.")
+        else:
+            person_summary = person_summary.sort_values(
+                ["Cumplimiento", "Alertas"], ascending=[False, True]
             )
-            .dt.strftime(
-                "%d/%m/%Y"
-            )
-            .fillna(
-                "—"
-            )
-        )
-
-        attention[
-            "Final"
-        ] = (
-            pd.to_datetime(
-                attention[
-                    "due_date"
-                ],
-                errors="coerce",
-            )
-            .dt.strftime(
-                "%d/%m/%Y"
-            )
-            .fillna(
-                "—"
-            )
-        )
-
-        attention[
-            "Real %"
-        ] = (
-            attention[
-                "progress"
-            ]
-            .fillna(
-                0
-            )
-            .round(
-                0
-            )
-        )
-
-        attention[
-            "Teórico %"
-        ] = (
-            attention[
-                "Teórico %"
-            ]
-            .round(
-                0
-            )
-        )
-
-        attention_display = attention[
-            [
-                "Semáforo",
-                "code",
-                "title",
-                "assignee",
-                "priority",
-                "Final",
-                "Real %",
-                "Desvío pp",
-            ]
-        ].rename(
-            columns={
-                "code": "Código",
-                "title": "Tarea",
-                "assignee": "Responsable",
-                "priority": "Prioridad",
-            }
-        )
-
-        st.dataframe(
-            attention_display.head(8),
-            hide_index=True,
-            use_container_width=True,
-            height=min(330, 74 + 35 * min(len(attention_display), 8)),
-        )
-
-        if len(attention_display) > 8:
-            with st.expander(f"Ver las {len(attention_display)} tareas con atención"):
+            for _, person_row in person_summary.head(6).iterrows():
+                st.markdown(
+                    f"""
+                    <div class="sev-ranking-row">
+                        <div>
+                            <div class="sev-ranking-name">{person_row['Responsable']}</div>
+                            <div class="sev-ranking-meta">
+                                {int(person_row['Activas'])} activa(s) ·
+                                {int(person_row['Alertas'])} alerta(s)
+                            </div>
+                        </div>
+                        <div class="sev-ranking-score">{float(person_row['Cumplimiento']):.0f}%</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with st.expander("Ver ranking completo", expanded=False):
                 st.dataframe(
-                    attention_display,
+                    person_summary,
                     hide_index=True,
                     use_container_width=True,
+                    column_config={
+                        "Cumplimiento": st.column_config.ProgressColumn(
+                            "Cumplimiento", min_value=0, max_value=100, format="%d%%"
+                        )
+                    },
                 )
 
     section(
-        "Solicitudes por mes",
-        "Cantidad de tareas solicitadas",
+        "Cronograma",
+        "Gantt completo disponible sin ocupar la pantalla ejecutiva inicial",
     )
+    with st.expander("Abrir cronograma de cumplimiento · Gantt", expanded=False):
+        gantt_chart(view)
 
-    monthly = (
-        view.copy()
-    )
+    with st.expander("Solicitudes por mes", expanded=False):
+        monthly = view.copy()
+        monthly["Mes"] = (
+            pd.to_datetime(monthly["requested"], errors="coerce")
+            .dt.to_period("M").astype(str)
+        )
+        monthly = monthly.groupby("Mes").size().reset_index(name="Tareas")
 
-    monthly[
-        "Mes"
-    ] = (
-        pd.to_datetime(
-            monthly[
-                "requested"
-            ],
-            errors="coerce",
-        )
-        .dt.to_period(
-            "M"
-        )
-        .astype(
-            str
-        )
-    )
-
-    monthly = (
-        monthly
-        .groupby(
-            "Mes"
-        )
-        .size()
-        .reset_index(
-            name="Tareas"
-        )
-    )
-
-    if not monthly.empty:
-
-        fig_month = (
-            px.line(
-                monthly,
-                x="Mes",
-                y="Tareas",
-                markers=True,
+        if monthly.empty:
+            st.info("No hay datos para el período seleccionado.")
+        else:
+            fig_month = px.line(monthly, x="Mes", y="Tareas", markers=True)
+            fig_month.update_traces(
+                line_color=BRAND_GREEN, marker_color=BRAND_GREEN, line_width=3
             )
-        )
-
-        fig_month.update_traces(
-            line_color=BRAND_GREEN,
-            marker_color=BRAND_GREEN,
-            line_width=3,
-        )
-
-        fig_month.update_layout(
-            height=300,
-            margin=dict(
-                l=10,
-                r=10,
-                t=10,
-                b=10,
-            ),
-            paper_bgcolor=(
-                "rgba(0,0,0,0)"
-            ),
-            plot_bgcolor="#FFFFFF",
-            font=dict(
-                color=BRAND_DARK
-            ),
-            xaxis=dict(
-                showgrid=False
-            ),
-            yaxis=dict(
-                gridcolor="#E8ECE9"
-            ),
-        )
-
-        st.plotly_chart(
-            fig_month,
-            use_container_width=True,
-        )
+            fig_month.update_layout(
+                height=260,
+                margin=dict(l=10, r=10, t=10, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="#FFFFFF",
+                font=dict(color=BRAND_DARK),
+                xaxis=dict(showgrid=False),
+                yaxis=dict(gridcolor="#E8ECE9", rangemode="tozero"),
+            )
+            st.plotly_chart(
+                fig_month,
+                use_container_width=True,
+                config={"displaylogo": False},
+            )
 
 
 # ============================================================
