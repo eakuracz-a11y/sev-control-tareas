@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.20"
+APP_VERSION = "V2.21"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,7 +208,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.20
+# CSS GENERAL · V2.21
 # ============================================================
 
 st.markdown(
@@ -1843,23 +1843,44 @@ def recurring_family_rows(connection, master_id):
 
 def recurring_monthly_year_control(connection, master_row, year):
     """
-    Construye el control anual para una tarea mensual.
+    Control anual mensual V2.21.
 
-    No inventa cierres: la fecha real se toma de finished_at y,
-    como respaldo administrativo, closed_at.
+    Soporta también tareas recurrentes históricas que tienen recurrence_day
+    pero no due_date. En ese caso usa requested/created_at como fecha de inicio
+    administrativo y construye la fecha prevista de cada mes con recurrence_day.
     """
     master_id = int(master_row["id"])
     family = recurring_family_rows(connection, master_id)
 
     base_due = _safe_date(master_row.get("due_date"))
-    if base_due is None:
-        return pd.DataFrame()
 
     recurrence_day = master_row.get("recurrence_day")
     try:
-        recurrence_day = int(recurrence_day) if recurrence_day else base_due.day
+        recurrence_day = int(recurrence_day) if recurrence_day else None
     except Exception:
-        recurrence_day = base_due.day
+        recurrence_day = None
+
+    # Fallback para registros existentes creados antes de que due_date fuera obligatorio.
+    start_reference = base_due
+    if start_reference is None:
+        for field in ["requested", "created_at", "start_date"]:
+            candidate = _safe_date(master_row.get(field))
+            if candidate is not None:
+                start_reference = candidate
+                break
+
+    if recurrence_day is None:
+        if base_due is not None:
+            recurrence_day = base_due.day
+        elif start_reference is not None:
+            recurrence_day = start_reference.day
+        else:
+            return pd.DataFrame()
+
+    # Si no hay ninguna fecha histórica utilizable, al menos permite visualizar
+    # el año seleccionado usando el día recurrente configurado.
+    if start_reference is None:
+        start_reference = date(int(year), 1, min(recurrence_day, 28))
 
     rows = []
     today = date.today()
@@ -1869,8 +1890,8 @@ def recurring_monthly_year_control(connection, master_row, year):
         planned_day = min(recurrence_day, last_day)
         planned = date(int(year), month, planned_day)
 
-        # Antes de que la rutina comenzara, no se exige cumplimiento.
-        if planned < date(base_due.year, base_due.month, 1):
+        # No exigir cumplimiento antes del mes en que se creó/configuró la rutina.
+        if planned < date(start_reference.year, start_reference.month, 1):
             rows.append({
                 "Mes nº": month,
                 "Prevista": planned,
@@ -1879,7 +1900,7 @@ def recurring_monthly_year_control(connection, master_row, year):
                 "Clase": "neutral",
                 "Desvío días": None,
                 "Código": "",
-                "Estado tarea": "",
+                "Estado tarefa": "",
                 "Avance %": None,
             })
             continue
@@ -1888,14 +1909,30 @@ def recurring_monthly_year_control(connection, master_row, year):
         month_instances["_due"] = pd.to_datetime(
             month_instances["due_date"], errors="coerce"
         )
-        month_instances = month_instances[
+
+        # La maestra antigua puede no tener due_date. Para el mes de inicio,
+        # se la considera instancia válida si coincide el año/mes administrativo.
+        valid_due = month_instances[
             month_instances["_due"].notna()
             & (month_instances["_due"].dt.year == int(year))
             & (month_instances["_due"].dt.month == month)
         ].copy()
 
+        if valid_due.empty and base_due is None:
+            master_candidates = month_instances[
+                month_instances["id"].astype(int) == master_id
+            ].copy()
+            if (
+                not master_candidates.empty
+                and start_reference.year == int(year)
+                and start_reference.month == month
+            ):
+                valid_due = master_candidates.copy()
+                valid_due["_due"] = pd.Timestamp(planned)
+
+        month_instances = valid_due
+
         if not month_instances.empty:
-            # Si hubiera más de una, prioriza la que coincide más con la fecha prevista.
             month_instances["_diff"] = (
                 month_instances["_due"].dt.date.apply(
                     lambda d: abs((d - planned).days)
@@ -1917,7 +1954,7 @@ def recurring_monthly_year_control(connection, master_row, year):
                     annual_status = "🟢 Cumplida"
                     css_class = "on"
                 else:
-                    annual_status = "🟡 Cumplida fora do prazo"
+                    annual_status = "🟡 Cumplida fuera de plazo"
                     css_class = "late"
             elif planned < today:
                 delta = None
@@ -1925,7 +1962,7 @@ def recurring_monthly_year_control(connection, master_row, year):
                 css_class = "bad"
             elif planned == today:
                 delta = None
-                annual_status = "🔵 Vence hoje"
+                annual_status = "🔵 Vence hoy"
                 css_class = "open"
             else:
                 delta = None
@@ -1946,8 +1983,11 @@ def recurring_monthly_year_control(connection, master_row, year):
 
         else:
             if planned < today:
-                annual_status = "⚪ Sem registro"
+                annual_status = "⚪ Sin registro"
                 css_class = "neutral"
+            elif planned == today:
+                annual_status = "🔵 Vence hoy"
+                css_class = "open"
             else:
                 annual_status = "○ Programada"
                 css_class = "neutral"
@@ -4865,10 +4905,32 @@ elif page == "Recurrentes":
         st.info("No existen tareas recurrentes.")
 
     else:
-        recurrent["Final prevista"] = (
-            pd.to_datetime(recurrent["due_date"], errors="coerce")
-            .dt.strftime("%d/%m/%Y")
-            .fillna("—")
+        def _recurrent_expected_date(row):
+            due = _safe_date(row.get("due_date"))
+            if due is not None:
+                return due.strftime("%d/%m/%Y")
+
+            try:
+                day = int(row.get("recurrence_day"))
+            except Exception:
+                return "—"
+
+            ref = None
+            for field in ["requested", "created_at", "start_date"]:
+                ref = _safe_date(row.get(field))
+                if ref is not None:
+                    break
+
+            if ref is None:
+                ref = date.today()
+
+            last_day = calendar.monthrange(ref.year, ref.month)[1]
+            expected = date(ref.year, ref.month, min(day, last_day))
+            return expected.strftime("%d/%m/%Y")
+
+        recurrent["Final prevista"] = recurrent.apply(
+            _recurrent_expected_date,
+            axis=1,
         )
         recurrent["Finalizada"] = (
             pd.to_datetime(recurrent["finished_at"], errors="coerce")
@@ -4982,9 +5044,9 @@ elif page == "Recurrentes":
                 st.warning("No fue posible construir el calendario anual de esta tarea.")
             else:
                 month_names_short = [
-                    "Janeiro", "Fevereiro", "Março", "Abril",
-                    "Maio", "Junho", "Julho", "Agosto",
-                    "Setembro", "Outubro", "Novembro", "Dezembro",
+                    "Enero", "Febrero", "Marzo", "Abril",
+                    "Mayo", "Junio", "Julio", "Agosto",
+                    "Septiembre", "Octubre", "Noviembre", "Diciembre",
                 ]
 
                 due_until_today = annual[
@@ -5026,11 +5088,11 @@ elif page == "Recurrentes":
                 )
 
                 r1, r2, r3, r4, r5 = st.columns(5)
-                r1.metric("Cumprimento anual", f"{compliance_pct}%")
-                r2.metric("Previstas até hoje", expected)
-                r3.metric("No prazo", on_time)
-                r4.metric("Fora do prazo", late)
-                r5.metric("Vencidas / sem registro", overdue_or_missing)
+                r1.metric("Cumplimiento anual", f"{compliance_pct}%")
+                r2.metric("Previstas hasta hoy", expected)
+                r3.metric("En plazo", on_time)
+                r4.metric("Fuera de plazo", late)
+                r5.metric("Vencidas / sin registro", overdue_or_missing)
 
                 st.markdown(
                     f'<div class="sev-annual-note"><b>{master["title"]}</b> · '
@@ -5078,37 +5140,37 @@ elif page == "Recurrentes":
                 )
 
                 detail = annual.copy()
-                detail["Mês"] = detail["Mes nº"].apply(
+                detail["Mes"] = detail["Mes nº"].apply(
                     lambda m: month_names_short[int(m) - 1]
                 )
-                detail["Data prevista"] = detail["Prevista"].apply(
+                detail["Fecha prevista"] = detail["Prevista"].apply(
                     lambda d: d.strftime("%d/%m/%Y") if isinstance(d, date) else "—"
                 )
-                detail["Data de término"] = detail["Finalizada"].apply(
+                detail["Fecha de término"] = detail["Finalizada"].apply(
                     lambda d: d.strftime("%d/%m/%Y") if isinstance(d, date) else "—"
                 )
-                detail["Desvio (dias)"] = detail["Desvío días"].apply(
+                detail["Desvío (días)"] = detail["Desvío días"].apply(
                     lambda x: "—" if pd.isna(x) else int(x)
                 )
 
-                with st.expander("Ver histórico anual detalhado", expanded=False):
+                with st.expander("Ver histórico anual detallado", expanded=False):
                     st.dataframe(
                         detail[
                             [
-                                "Mês",
-                                "Data prevista",
-                                "Data de término",
+                                "Mes",
+                                "Fecha prevista",
+                                "Fecha de término",
                                 "Estado anual",
-                                "Desvio (dias)",
+                                "Desvío (días)",
                                 "Código",
                                 "Estado tarefa",
                                 "Avance %",
                             ]
                         ].rename(
                             columns={
-                                "Estado anual": "Cumprimento",
-                                "Estado tarefa": "Estado atual",
-                                "Avance %": "Avanço %",
+                                "Estado anual": "Cumplimiento",
+                                "Estado tarefa": "Estado actual",
+                                "Avance %": "Avance %",
                             }
                         ),
                         hide_index=True,
