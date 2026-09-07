@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.18"
+APP_VERSION = "V2.19"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -208,7 +208,7 @@ st.set_page_config(
 
 
 # ============================================================
-# CSS GENERAL · V2.18
+# CSS GENERAL · V2.19
 # ============================================================
 
 st.markdown(
@@ -575,6 +575,189 @@ hr {{
     color:#6F8077;
     font-size:.70rem;
     margin:.10rem 0 .36rem 0;
+}}
+
+.sev-action-list {{
+    display:flex;
+    flex-direction:column;
+    gap:.44rem;
+    margin-top:.18rem;
+}}
+
+.sev-action-row {{
+    display:grid;
+    grid-template-columns:112px minmax(0,1fr) 138px 92px 88px;
+    gap:.58rem;
+    align-items:center;
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:11px;
+    padding:.56rem .64rem;
+}}
+
+.sev-action-status {{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:28px;
+    padding:.20rem .48rem;
+    border-radius:999px;
+    font-size:.66rem;
+    font-weight:800;
+    white-space:nowrap;
+}}
+
+.sev-badge-late {{
+    color:#8F2F29;
+    background:#FCEDEA;
+}}
+.sev-badge-pending {{
+    color:#9A5A10;
+    background:#FFF4E2;
+}}
+.sev-badge-attention {{
+    color:#8C6500;
+    background:#FFF8D8;
+}}
+.sev-badge-close {{
+    color:#345F8B;
+    background:#EDF4FB;
+}}
+
+.sev-action-title {{
+    min-width:0;
+    color:{BRAND_DARK};
+    font-size:.77rem;
+    font-weight:740;
+    line-height:1.20;
+}}
+.sev-action-owner {{
+    color:#5E7167;
+    font-size:.70rem;
+    font-weight:680;
+}}
+.sev-action-meta {{
+    color:#74857D;
+    font-size:.68rem;
+}}
+.sev-action-progress {{
+    color:{BRAND_DARK};
+    font-size:.72rem;
+    font-weight:760;
+    text-align:right;
+}}
+
+.sev-action-head {{
+    display:grid;
+    grid-template-columns:112px minmax(0,1fr) 138px 92px 88px;
+    gap:.58rem;
+    padding:0 .64rem .20rem .64rem;
+    color:#7B8A83;
+    font-size:.62rem;
+    font-weight:760;
+    text-transform:uppercase;
+    letter-spacing:.035em;
+}}
+
+.sev-progress-card {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:11px;
+    padding:.58rem .66rem;
+    margin-bottom:.46rem;
+}}
+.sev-progress-top {{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:.65rem;
+}}
+.sev-progress-title2 {{
+    min-width:0;
+    color:{BRAND_DARK};
+    font-size:.78rem;
+    font-weight:760;
+    line-height:1.20;
+}}
+.sev-progress-value2 {{
+    flex:0 0 auto;
+    color:{BRAND_GREEN};
+    font-size:.88rem;
+    font-weight:830;
+}}
+.sev-progress-sub {{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.34rem .60rem;
+    margin:.22rem 0 .34rem 0;
+    color:#71827A;
+    font-size:.67rem;
+}}
+.sev-progress-sub strong {{
+    color:#4D6257;
+    font-weight:730;
+}}
+.sev-progress-track2 {{
+    height:8px;
+    background:#E8EEE9;
+    border-radius:999px;
+    overflow:hidden;
+}}
+.sev-progress-fill2 {{
+    height:100%;
+    background:{BRAND_GREEN};
+    border-radius:999px;
+}}
+
+.sev-owner-card {{
+    background:#FFFFFF;
+    border:1px solid {BRAND_BORDER};
+    border-radius:11px;
+    padding:.58rem .64rem;
+    margin-bottom:.42rem;
+}}
+.sev-owner-top {{
+    display:flex;
+    justify-content:space-between;
+    gap:.5rem;
+    align-items:center;
+}}
+.sev-owner-name {{
+    color:{BRAND_DARK};
+    font-size:.76rem;
+    font-weight:760;
+}}
+.sev-owner-score {{
+    color:{BRAND_GREEN};
+    font-size:.92rem;
+    font-weight:830;
+}}
+.sev-owner-meta {{
+    color:#75867D;
+    font-size:.66rem;
+    margin-top:.16rem;
+}}
+.sev-owner-bar {{
+    height:6px;
+    background:#E8EEE9;
+    border-radius:999px;
+    overflow:hidden;
+    margin-top:.34rem;
+}}
+.sev-owner-fill {{
+    height:100%;
+    background:{BRAND_GREEN};
+    border-radius:999px;
+}}
+
+@media (max-width: 980px) {{
+    .sev-action-head {{ display:none !important; }}
+    .sev-action-row {{
+        grid-template-columns:1fr 1fr !important;
+        gap:.35rem .55rem !important;
+    }}
+    .sev-action-title {{ grid-column:1 / -1; }}
+    .sev-action-progress {{ text-align:left !important; }}
 }}
 @media (max-width: 768px) {{
     .sev-action-summary {{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }}
@@ -2809,17 +2992,32 @@ if page == "Tablero":
         unsafe_allow_html=True,
     )
 
-    section("Atención inmediata", "Lo que requiere decisión o seguimiento ahora")
-    left_action, right_hitos = st.columns([3.15, 1.15], gap="medium")
+    section(
+        "Atención inmediata",
+        "Acciones pendientes ordenadas por urgencia y fecha",
+    )
+    left_action, right_hitos = st.columns([3.30, 1.00], gap="medium")
 
     with left_action:
         st.markdown(
             f"""
             <div class="sev-action-summary">
-                <div class="sev-action-pill"><div class="n">{overdue_count}</div><div class="t">Atrasadas / vencidas</div></div>
-                <div class="sev-action-pill"><div class="n">{attention_count}</div><div class="t">En atención</div></div>
-                <div class="sev-action-pill"><div class="n">{pending_acceptance_count}</div><div class="t">Sin aceptar</div></div>
-                <div class="sev-action-pill"><div class="n">{waiting_close}</div><div class="t">Esperando cierre</div></div>
+                <div class="sev-action-pill">
+                    <div class="n">{overdue_count}</div>
+                    <div class="t">Atrasadas / vencidas</div>
+                </div>
+                <div class="sev-action-pill">
+                    <div class="n">{attention_count}</div>
+                    <div class="t">En atención</div>
+                </div>
+                <div class="sev-action-pill">
+                    <div class="n">{pending_acceptance_count}</div>
+                    <div class="t">Sin aceptar</div>
+                </div>
+                <div class="sev-action-pill">
+                    <div class="n">{waiting_close}</div>
+                    <div class="t">Esperando cierre</div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2839,30 +3037,27 @@ if page == "Tablero":
         )
         urgent["_waiting_close"] = urgent["status"] == "Terminada - espera cierre"
         urgent["_urgent"] = (
-            urgent["_late"] | urgent["_attention"]
-            | urgent["_pending_acceptance"] | urgent["_waiting_close"]
+            urgent["_late"]
+            | urgent["_attention"]
+            | urgent["_pending_acceptance"]
+            | urgent["_waiting_close"]
         )
         urgent = urgent[urgent["_urgent"]].copy()
 
-        def _action_label(row):
+        def _action_label_v219(row):
             if bool(row["_late"]):
-                return "🔴 Atrasada"
+                return "Atrasada", "late"
             if bool(row["_pending_acceptance"]):
-                return "🟠 Sin aceptar"
+                return "Sin aceptar", "pending"
             if bool(row["_attention"]):
-                return "🟡 Atención"
+                return "Atención", "attention"
             if bool(row["_waiting_close"]):
-                return "🔵 Espera cierre"
-            return "⚪ Revisar"
+                return "Espera cierre", "close"
+            return "Revisar", "pending"
 
         if urgent.empty:
             st.success("Sin acciones críticas en la vista seleccionada.")
         else:
-            urgent["Acción"] = urgent.apply(_action_label, axis=1)
-            urgent["Vence"] = urgent["_due"].dt.strftime("%d/%m/%Y").fillna("—")
-            urgent["Avance %"] = pd.to_numeric(
-                urgent["progress"], errors="coerce"
-            ).fillna(0).round(0)
             priority_order = {"Crítica": 0, "Alta": 1, "Media": 2, "Baja": 3}
             urgent["_prio"] = urgent["priority"].map(priority_order).fillna(9)
             urgent = urgent.sort_values(
@@ -2870,31 +3065,99 @@ if page == "Tablero":
                 ascending=[False, False, False, True, True],
                 na_position="last",
             )
-            urgent_display = urgent[
-                ["Acción", "title", "assignee", "priority", "Vence", "Avance %"]
-            ].rename(columns={
-                "title": "Tarea",
-                "assignee": "Responsable",
-                "priority": "Prioridad",
-            })
-            st.dataframe(
-                urgent_display.head(7),
-                hide_index=True,
-                use_container_width=True,
-                height=min(315, 72 + 35 * min(len(urgent_display), 7)),
+
+            st.markdown(
+                """
+                <div class="sev-action-head">
+                    <div>Acción</div>
+                    <div>Tarea</div>
+                    <div>Responsable</div>
+                    <div>Prioridad</div>
+                    <div>Avance</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-            if len(urgent_display) > 7:
-                with st.expander(f"Ver las {len(urgent_display)} acciones pendientes"):
-                    st.dataframe(urgent_display, hide_index=True, use_container_width=True)
+
+            for _, task_row in urgent.head(7).iterrows():
+                action_label, action_class = _action_label_v219(task_row)
+                title = str(task_row.get("title") or "—")
+                owner = str(task_row.get("assignee") or "—")
+                priority = str(task_row.get("priority") or "—")
+                progress = float(task_row.get("progress") or 0)
+
+                due_ts = task_row.get("_due")
+                if pd.isna(due_ts):
+                    due_text = "Sin fecha"
+                else:
+                    due_text = due_ts.strftime("%d/%m/%Y")
+
+                st.markdown(
+                    f"""
+                    <div class="sev-action-row">
+                        <div>
+                            <span class="sev-action-status sev-badge-{action_class}">
+                                {action_label}
+                            </span>
+                        </div>
+                        <div class="sev-action-title">{title}</div>
+                        <div class="sev-action-owner">{owner}</div>
+                        <div class="sev-action-meta">
+                            {priority}<br>
+                            <span style="font-size:.62rem;">{due_text}</span>
+                        </div>
+                        <div class="sev-action-progress">{progress:.0f}%</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            if len(urgent) > 7:
+                with st.expander(
+                    f"Ver todas las {len(urgent)} acciones pendientes",
+                    expanded=False,
+                ):
+                    full_urgent = urgent.copy()
+                    full_urgent["Acción"] = full_urgent.apply(
+                        lambda row: _action_label_v219(row)[0], axis=1
+                    )
+                    full_urgent["Vence"] = full_urgent["_due"].dt.strftime(
+                        "%d/%m/%Y"
+                    ).fillna("—")
+                    full_urgent["Avance %"] = pd.to_numeric(
+                        full_urgent["progress"], errors="coerce"
+                    ).fillna(0).round(0)
+
+                    st.dataframe(
+                        full_urgent[
+                            [
+                                "Acción",
+                                "title",
+                                "assignee",
+                                "priority",
+                                "Vence",
+                                "Avance %",
+                            ]
+                        ].rename(
+                            columns={
+                                "title": "Tarea",
+                                "assignee": "Responsable",
+                                "priority": "Prioridad",
+                            }
+                        ),
+                        hide_index=True,
+                        use_container_width=True,
+                    )
 
     with right_hitos:
         st.markdown(
             '<div class="sev-panel-title"><span class="sev-dot"></span>Próximos hitos</div>',
             unsafe_allow_html=True,
         )
+
         hitos = active_view.copy()
         hitos["_due"] = pd.to_datetime(hitos["due_date"], errors="coerce")
-        hitos = hitos[hitos["_due"].notna()].sort_values("_due").head(6)
+        hitos = hitos[hitos["_due"].notna()].sort_values("_due").head(5)
 
         if hitos.empty:
             st.caption("No hay próximos vencimientos.")
@@ -2902,6 +3165,7 @@ if page == "Tablero":
             for _, hito in hitos.iterrows():
                 due_hito = hito["_due"].date()
                 dias = (due_hito - date.today()).days
+
                 if dias < 0:
                     plazo = f"Vencida {abs(dias)} d"
                     state_color = COLOR_DANGER
@@ -2916,8 +3180,8 @@ if page == "Tablero":
                     state_color = BRAND_GREEN
 
                 title_hito = str(hito.get("title") or "")
-                if len(title_hito) > 34:
-                    title_hito = title_hito[:32].rstrip() + "…"
+                if len(title_hito) > 28:
+                    title_hito = title_hito[:26].rstrip() + "…"
 
                 st.markdown(
                     f"""
@@ -2935,39 +3199,54 @@ if page == "Tablero":
 
     section(
         "Avance operativo",
-        "Progreso de tareas activas y desempeño resumido por responsable",
+        "Seguimiento de tareas activas y desempeño por responsable",
     )
-    progress_col, ranking_col = st.columns([3.15, 1.15], gap="medium")
+    progress_col, ranking_col = st.columns([3.30, 1.00], gap="medium")
 
     with progress_col:
         progress_tasks = active_view.copy()
-        progress_tasks["_due"] = pd.to_datetime(progress_tasks["due_date"], errors="coerce")
+        progress_tasks["_due"] = pd.to_datetime(
+            progress_tasks["due_date"], errors="coerce"
+        )
         progress_tasks["_progress"] = pd.to_numeric(
             progress_tasks["progress"], errors="coerce"
         ).fillna(0).clip(0, 100)
+
         progress_tasks = progress_tasks.sort_values(
-            ["_due", "_progress"], ascending=[True, False], na_position="last"
-        ).head(8)
+            ["_due", "_progress"],
+            ascending=[True, False],
+            na_position="last",
+        ).head(7)
 
         if progress_tasks.empty:
             st.info("No hay tareas activas para mostrar.")
         else:
             for _, task_row in progress_tasks.iterrows():
                 title = str(task_row.get("title") or "Tarea")
-                if len(title) > 58:
-                    title = title[:56].rstrip() + "…"
                 owner = str(task_row.get("assignee") or "—")
                 pct = float(task_row["_progress"])
-                status_txt = str(task_row.get("Semáforo") or "")
+                status_txt = str(task_row.get("Semáforo") or "—")
+                due_ts = task_row.get("_due")
+
+                if pd.isna(due_ts):
+                    due_text = "Sin fecha"
+                else:
+                    due_text = due_ts.strftime("%d/%m/%Y")
+
                 st.markdown(
                     f"""
-                    <div class="sev-progress-row">
-                        <div class="sev-progress-head">
-                            <span>{title}</span>
-                            <span>{pct:.0f}% · {owner} · {status_txt}</span>
+                    <div class="sev-progress-card">
+                        <div class="sev-progress-top">
+                            <div class="sev-progress-title2">{title}</div>
+                            <div class="sev-progress-value2">{pct:.0f}%</div>
                         </div>
-                        <div class="sev-progress-track">
-                            <div class="sev-progress-fill" style="width:{pct:.0f}%"></div>
+                        <div class="sev-progress-sub">
+                            <span><strong>{owner}</strong></span>
+                            <span>Vence: {due_text}</span>
+                            <span>{status_txt}</span>
+                        </div>
+                        <div class="sev-progress-track2">
+                            <div class="sev-progress-fill2" style="width:{pct:.0f}%"></div>
                         </div>
                     </div>
                     """,
@@ -2982,58 +3261,83 @@ if page == "Tablero":
             '<div class="sev-panel-title"><span class="sev-dot"></span>Responsables</div>',
             unsafe_allow_html=True,
         )
+
         person_rows = []
         for person_name, person_tasks in view.groupby("assignee", dropna=False):
-            active_person = person_tasks[person_tasks["status"] != "Cerrada"].copy()
+            active_person = person_tasks[
+                person_tasks["status"] != "Cerrada"
+            ].copy()
+
             total_active = len(active_person)
             if total_active == 0:
                 continue
 
-            late_n = int(active_person["Semáforo"].astype(str).str.contains(
-                "🔴 Atrasada|🔴 Vencida", regex=True
-            ).sum())
-            attention_n = int(active_person["Semáforo"].astype(str).str.contains(
-                "🟡 Atención", regex=False
-            ).sum())
-            green_n = int(active_person["Semáforo"].astype(str).str.contains(
-                "🟢 En término", regex=False
-            ).sum())
-            evaluable_n = int((~active_person["Semáforo"].astype(str).str.contains(
-                "⚪ Sin cronograma", regex=False
-            )).sum())
+            late_n = int(
+                active_person["Semáforo"].astype(str).str.contains(
+                    "🔴 Atrasada|🔴 Vencida", regex=True
+                ).sum()
+            )
+            attention_n = int(
+                active_person["Semáforo"].astype(str).str.contains(
+                    "🟡 Atención", regex=False
+                ).sum()
+            )
+            green_n = int(
+                active_person["Semáforo"].astype(str).str.contains(
+                    "🟢 En término", regex=False
+                ).sum()
+            )
+            evaluable_n = int(
+                (
+                    ~active_person["Semáforo"]
+                    .astype(str)
+                    .str.contains("⚪ Sin cronograma", regex=False)
+                ).sum()
+            )
+
             score = round(100 * green_n / evaluable_n) if evaluable_n > 0 else 0
             score = max(0, min(100, score))
 
-            person_rows.append({
-                "Responsable": str(person_name),
-                "Cumplimiento": score,
-                "Activas": total_active,
-                "Alertas": late_n + attention_n,
-            })
+            person_rows.append(
+                {
+                    "Responsable": str(person_name),
+                    "Cumplimiento": score,
+                    "Activas": total_active,
+                    "Alertas": late_n + attention_n,
+                }
+            )
 
         person_summary = pd.DataFrame(person_rows)
+
         if person_summary.empty:
             st.caption("Sin responsables con tareas activas.")
         else:
             person_summary = person_summary.sort_values(
-                ["Cumplimiento", "Alertas"], ascending=[False, True]
+                ["Cumplimiento", "Alertas"],
+                ascending=[False, True],
             )
-            for _, person_row in person_summary.head(6).iterrows():
+
+            for _, person_row in person_summary.head(5).iterrows():
+                score = float(person_row["Cumplimiento"])
                 st.markdown(
                     f"""
-                    <div class="sev-ranking-row">
-                        <div>
-                            <div class="sev-ranking-name">{person_row['Responsable']}</div>
-                            <div class="sev-ranking-meta">
-                                {int(person_row['Activas'])} activa(s) ·
-                                {int(person_row['Alertas'])} alerta(s)
-                            </div>
+                    <div class="sev-owner-card">
+                        <div class="sev-owner-top">
+                            <div class="sev-owner-name">{person_row['Responsable']}</div>
+                            <div class="sev-owner-score">{score:.0f}%</div>
                         </div>
-                        <div class="sev-ranking-score">{float(person_row['Cumplimiento']):.0f}%</div>
+                        <div class="sev-owner-meta">
+                            {int(person_row['Activas'])} activa(s) ·
+                            {int(person_row['Alertas'])} alerta(s)
+                        </div>
+                        <div class="sev-owner-bar">
+                            <div class="sev-owner-fill" style="width:{score:.0f}%"></div>
+                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
+
             with st.expander("Ver ranking completo", expanded=False):
                 st.dataframe(
                     person_summary,
@@ -3041,7 +3345,10 @@ if page == "Tablero":
                     use_container_width=True,
                     column_config={
                         "Cumplimiento": st.column_config.ProgressColumn(
-                            "Cumplimiento", min_value=0, max_value=100, format="%d%%"
+                            "Cumplimiento",
+                            min_value=0,
+                            max_value=100,
+                            format="%d%%",
                         )
                     },
                 )
