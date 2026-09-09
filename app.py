@@ -916,6 +916,13 @@ hr {{
         flex: 1 1 100% !important;
     }}
 }}
+
+/* V2.24 · densidad visual para formularios operativos */
+div[data-testid="stVerticalBlock"] { gap: .48rem; }
+div[data-testid="stForm"] { padding: .55rem .70rem .60rem .70rem; }
+div[data-testid="stForm"] [data-testid="stVerticalBlock"] { gap: .34rem; }
+div[data-testid="stTextArea"] textarea { min-height: 68px !important; }
+div[data-testid="stForm"] [data-testid="stHorizontalBlock"] { gap: .65rem; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -3877,19 +3884,12 @@ elif page == "Nueva tarea":
         "La codificación SEV se genera automáticamente",
     )
 
-    sector_name = st.selectbox(
-        "Sector",
-        list(
-            SECTORES
-        ),
-    )
-
-    area_name = st.selectbox(
-        "Área / familia",
-        list(
-            AREAS
-        ),
-    )
+    # V2.24 · formulario compacto: sector y área en una sola fila
+    sector_col, area_col = st.columns(2)
+    with sector_col:
+        sector_name = st.selectbox("Sector", list(SECTORES))
+    with area_col:
+        area_name = st.selectbox("Área / familia", list(AREAS))
 
     maintenance_type = None
 
@@ -3917,10 +3917,9 @@ elif page == "Nueva tarea":
             )
         )
 
-        description = (
-            st.text_area(
-                "Descripción"
-            )
+        description = st.text_area(
+            "Descripción",
+            height=68,
         )
 
         col1, col2 = (
@@ -3987,18 +3986,12 @@ elif page == "Nueva tarea":
             )
         )
 
-        recurrence = (
-            st.selectbox(
-                "Recurrencia",
-                RECURRENCIAS,
-            )
-        )
-
-        observation = (
-            st.text_area(
-                "Observación"
-            )
-        )
+        # Recurrencia y observación compactadas para evitar scroll
+        rec_col, obs_col = st.columns([1, 2])
+        with rec_col:
+            recurrence = st.selectbox("Recurrencia", RECURRENCIAS)
+        with obs_col:
+            observation = st.text_area("Observación", height=68)
 
         submit = (
             st.form_submit_button(
