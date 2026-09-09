@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.25"
+APP_VERSION = "V2.26"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -1099,6 +1099,12 @@ def init_db():
             created_at TEXT
 
         );
+
+        CREATE TABLE IF NOT EXISTS app_meta(
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TEXT
+        );
         """
     )
 
@@ -1194,6 +1200,35 @@ def init_db():
 
     c.commit()
 
+    # ========================================================
+    # V2.26 · REINICIO LIMPIO DEL CONTROL DE TAREAS
+    # ========================================================
+    # Elimina una sola vez todas las tareas y registros vinculados
+    # del período anterior para comenzar el control desde cero.
+    # La marca en app_meta evita repetir el borrado en cada rerun.
+    reset_key = "V2.26_FULL_TASK_RESET_20260909"
+    reset_done = c.execute(
+        "SELECT value FROM app_meta WHERE key = ?",
+        (reset_key,),
+    ).fetchone()
+
+    if not reset_done:
+        c.execute("DELETE FROM updates")
+        c.execute("DELETE FROM email_logs")
+        c.execute("DELETE FROM task_events")
+        c.execute("DELETE FROM tasks")
+        c.execute(
+            "INSERT INTO app_meta(key, value, updated_at) VALUES (?, ?, ?)",
+            (
+                reset_key,
+                "done",
+                datetime.now().isoformat(),
+            ),
+        )
+        c.commit()
+
+    # V2.26: no volver a cargar tareas de ejemplo/semilla.
+    # Si la base queda vacía, permanece vacía hasta crear tareas reales.
     total = c.execute(
         """
         SELECT COUNT(*) AS n
@@ -1201,7 +1236,7 @@ def init_db():
         """
     ).fetchone()["n"]
 
-    if total == 0:
+    if False and total == 0:
 
         camille = c.execute(
             """
@@ -4193,70 +4228,12 @@ elif page == "Tareas":
     ]
 
     # ========================================================
-    # V2.25 · CORTE HISTÓRICO / REINICIO ESTADÍSTICO
+    # V2.26 · INICIO LIMPIO
     # ========================================================
-    # Las tareas creadas hasta este instante pertenecen al período anterior.
-    # Se conservan en historial, pero archived=1 las excluye del dataframe
-    # operativo y, por lo tanto, del Tablero y sus estadísticas.
-    HISTORICAL_CUTOFF = "2026-09-09T10:19:00"
-
-    with st.expander("Corte histórico · excluir tareas anteriores de las estadísticas", expanded=False):
-        st.info(
-            "Este control archiva las tareas creadas hasta el 09/09/2026 10:19. "
-            "No las elimina: continúan disponibles en el historial de tareas archivadas, "
-            "pero dejan de integrar el Tablero y los indicadores operativos."
-        )
-        historical_pending = c.execute(
-            """
-            SELECT COUNT(*) AS n
-            FROM tasks
-            WHERE COALESCE(archived, 0) = 0
-              AND COALESCE(created_at, requested || 'T23:59:59') <= ?
-            """,
-            (HISTORICAL_CUTOFF,),
-        ).fetchone()["n"]
-        st.caption(f"Tareas activas alcanzadas por el corte: {int(historical_pending)}")
-
-        confirm_historical_cut = st.checkbox(
-            "Confirmo que estas tareas corresponden al período anterior y no deben computar estadísticamente.",
-            key="confirm_historical_cut_v225",
-        )
-        if st.button(
-            "Archivar período anterior",
-            type="primary",
-            disabled=(not confirm_historical_cut or int(historical_pending) == 0),
-            key="archive_historical_cut_v225",
-        ):
-            rows_to_archive = c.execute(
-                """
-                SELECT id, code
-                FROM tasks
-                WHERE COALESCE(archived, 0) = 0
-                  AND COALESCE(created_at, requested || 'T23:59:59') <= ?
-                ORDER BY id
-                """,
-                (HISTORICAL_CUTOFF,),
-            ).fetchall()
-            ids_to_archive = [int(row["id"]) for row in rows_to_archive]
-            if ids_to_archive:
-                c.executemany(
-                    "UPDATE tasks SET archived = 1 WHERE id = ?",
-                    [(task_id,) for task_id in ids_to_archive],
-                )
-                c.commit()
-                for row in rows_to_archive:
-                    log_event(
-                        c,
-                        int(row["id"]),
-                        "historical_cut_archived",
-                        "Administrador",
-                        "Archivada por corte histórico V2.25: ejecución/cierre anterior no controlados; excluida de estadísticas.",
-                    )
-                st.success(
-                    f"Corte aplicado: {len(ids_to_archive)} tarea(s) archivada(s). "
-                    "Permanecen en el historial y ya no computan en las estadísticas."
-                )
-                st.rerun()
+    st.caption(
+        "V2.26 · El control estadístico considera únicamente las tareas nuevas "
+        "creadas después del reinicio. Las tareas anteriores fueron eliminadas."
+    )
 
     # ========================================================
     # V2.8 · EDICIÓN COMPLETA EN PRIMER PLANO
@@ -4732,7 +4709,12 @@ elif page == "Tareas":
             selected_status_row = filtered.loc[filtered["id"].astype(int) == int(selected_open_id)].iloc[0]
             if o2.button("✅ Cerrar tarea", use_container_width=True, disabled=(str(selected_status_row.get("status") or "") == "Cerrada"), key="close_selected_task_v211"):
                 now = datetime.now().isoformat()
-                c.execute("UPDATE tasks SET status='Cerrada', progress=100, finished_at=COALESCE(finished_at, ?), closed_at=COALESCE(closed_at, ?) WHERE id=?", (now, now, int(selected_open_id)))
+                c.execute(
+                    "UPDATE tasks SET status='Cerrada', progress=100, "
+                    "finished_at=COALESCE(finished_at, ?), closed_at=? "
+                    "WHERE id=?",
+                    (now, now, int(selected_open_id)),
+                )
                 c.commit()
                 log_event(c, int(selected_open_id), "closed", "Administrador", "Cierre administrativo desde listado compacto.")
                 st.rerun()
