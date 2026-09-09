@@ -2,6 +2,7 @@ from pathlib import Path
 import sqlite3
 import secrets
 import calendar
+import shutil
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -25,7 +26,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.27"
+APP_VERSION = "V2.28"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -1201,32 +1202,14 @@ def init_db():
     c.commit()
 
     # ========================================================
-    # V2.26 · REINICIO LIMPIO DEL CONTROL DE TAREAS
+    # V2.28 · PROTECCIÓN DE DATOS
     # ========================================================
-    # Elimina una sola vez todas las tareas y registros vinculados
-    # del período anterior para comenzar el control desde cero.
-    # La marca en app_meta evita repetir el borrado en cada rerun.
-    reset_key = "V2.26_FULL_TASK_RESET_20260909"
-    reset_done = c.execute(
-        "SELECT value FROM app_meta WHERE key = ?",
-        (reset_key,),
-    ).fetchone()
-
-    if not reset_done:
-        c.execute("DELETE FROM updates")
-        c.execute("DELETE FROM email_logs")
-        c.execute("DELETE FROM task_events")
-        c.execute("DELETE FROM tasks")
-        c.execute(
-            "INSERT INTO app_meta(key, value, updated_at) VALUES (?, ?, ?)",
-            (
-                reset_key,
-                "done",
-                datetime.now().isoformat(),
-            ),
-        )
-        c.commit()
-
+    # IMPORTANTE: desde V2.28 no existe ningún borrado automático
+    # de tasks, updates, email_logs o task_events al iniciar la app.
+    # Las tareas existentes deben conservarse siempre.
+    #
+    # El antiguo reset V2.26 fue eliminado deliberadamente.
+    #
     # V2.26: no volver a cargar tareas de ejemplo/semilla.
     # Si la base queda vacía, permanece vacía hasta crear tareas reales.
     total = c.execute(
@@ -2461,7 +2444,101 @@ def gantt_chart(
 # INICIALIZACIÓN
 # ============================================================
 
+
+# ============================================================
+# V2.28 · BACKUP Y DIAGNÓSTICO DE RECUPERACIÓN
+# ============================================================
+
+BACKUP_DIR = DATA_DIR / "backups"
+BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def create_local_backup(reason="startup"):
+    """
+    Crea una copia SQLite consistente de tareas.db dentro de data/backups.
+    No elimina ni modifica la base original.
+    """
+    db_path = Path(DB)
+    if not db_path.exists():
+        return None
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_reason = "".join(ch for ch in str(reason) if ch.isalnum() or ch in ("-", "_"))[:30]
+    backup_path = BACKUP_DIR / f"tareas_{stamp}_{safe_reason}.db"
+
+    src_conn = sqlite3.connect(DB)
+    dst_conn = sqlite3.connect(str(backup_path))
+    try:
+        src_conn.backup(dst_conn)
+    finally:
+        dst_conn.close()
+        src_conn.close()
+
+    # Mantener sólo los 30 backups locales más recientes.
+    backups = sorted(
+        BACKUP_DIR.glob("tareas_*.db"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    for old in backups[30:]:
+        try:
+            old.unlink()
+        except Exception:
+            pass
+
+    return backup_path
+
+
+def database_counts():
+    """Devuelve conteos seguros de las tablas principales."""
+    result = {}
+    conn = con()
+    try:
+        for table in ["tasks", "updates", "task_events", "email_logs", "app_meta"]:
+            try:
+                row = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
+                result[table] = int(row["n"] if row else 0)
+            except Exception:
+                result[table] = None
+    finally:
+        conn.close()
+    return result
+
+
+def sqlite_diagnostics():
+    """Información técnica útil para evaluar el estado actual del archivo."""
+    result = {}
+    conn = sqlite3.connect(DB)
+    try:
+        result["integrity_check"] = conn.execute("PRAGMA integrity_check").fetchone()[0]
+        result["journal_mode"] = conn.execute("PRAGMA journal_mode").fetchone()[0]
+        result["page_count"] = conn.execute("PRAGMA page_count").fetchone()[0]
+        result["freelist_count"] = conn.execute("PRAGMA freelist_count").fetchone()[0]
+    finally:
+        conn.close()
+    return result
+
+
+def dataframe_table(table):
+    conn = con()
+    try:
+        return pd.read_sql_query(f"SELECT * FROM {table}", conn)
+    except Exception:
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+
 init_db()
+
+try:
+    if "v228_startup_backup_done" not in st.session_state:
+        st.session_state["v228_startup_backup_path"] = create_local_backup("startup_v228")
+        st.session_state["v228_startup_backup_done"] = True
+except Exception as _backup_exc:
+    st.session_state["v228_startup_backup_error"] = str(_backup_exc)
+
 
 generate_recurring()
 
@@ -3106,6 +3183,7 @@ page = st.sidebar.radio(
         "Operarios",
         "Cierres pendientes",
         "Avisos",
+        "Recuperación / Backup",
     ],
 )
 
@@ -5273,6 +5351,187 @@ elif page == "Recurrentes":
 # ============================================================
 # MANTENIMIENTO
 # ============================================================
+
+
+elif page == "Recuperación / Backup":
+    st.title("Recuperación / Backup")
+    st.caption(
+        "V2.28 elimina cualquier borrado automático al iniciar. "
+        "Esta pantalla permite guardar inmediatamente una copia de la base actual "
+        "y revisar qué registros siguen presentes."
+    )
+
+    counts = database_counts()
+    d1, d2, d3, d4 = st.columns(4)
+    d1.metric("Tareas actuales", counts.get("tasks") if counts.get("tasks") is not None else "—")
+    d2.metric("Actualizaciones", counts.get("updates") if counts.get("updates") is not None else "—")
+    d3.metric("Eventos", counts.get("task_events") if counts.get("task_events") is not None else "—")
+    d4.metric("Logs e-mail", counts.get("email_logs") if counts.get("email_logs") is not None else "—")
+
+    st.warning(
+        "No hagas otro reinicio ni redeploy antes de descargar una copia de la base actual. "
+        "Si las tareas ya fueron eliminadas y el DELETE fue confirmado, esta pantalla no puede "
+        "reconstruir automáticamente el contenido que ya no existe."
+    )
+
+    st.subheader("1. Descargar base SQLite actual")
+
+    db_path = Path(DB)
+    if db_path.exists():
+        db_bytes = db_path.read_bytes()
+        st.download_button(
+            "⬇️ Descargar tareas.db ahora",
+            data=db_bytes,
+            file_name=f"tareas_RECUPERACION_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+            mime="application/octet-stream",
+            use_container_width=True,
+        )
+        st.caption(
+            f"Archivo actual: {db_path.name} · {len(db_bytes) / 1024:.1f} KB"
+        )
+    else:
+        st.error("No se encontró el archivo tareas.db en esta instancia.")
+
+    st.subheader("2. Crear backup consistente")
+
+    if st.button(
+        "Crear backup inmediato",
+        type="primary",
+        use_container_width=True,
+        key="btn_v228_backup_now",
+    ):
+        try:
+            p = create_local_backup("manual")
+            if p and p.exists():
+                st.session_state["v228_manual_backup"] = str(p)
+                st.success(f"Backup creado: {p.name}")
+        except Exception as e:
+            st.error(f"No fue posible crear el backup: {e}")
+
+    manual_path = st.session_state.get("v228_manual_backup")
+    if manual_path:
+        p = Path(manual_path)
+        if p.exists():
+            st.download_button(
+                "⬇️ Descargar backup consistente",
+                data=p.read_bytes(),
+                file_name=p.name,
+                mime="application/octet-stream",
+                use_container_width=True,
+                key="download_v228_manual_backup",
+            )
+
+    startup_path = st.session_state.get("v228_startup_backup_path")
+    if startup_path:
+        p = Path(startup_path)
+        if p.exists():
+            st.info(f"Backup automático V2.28 creado al iniciar: {p.name}")
+
+    if st.session_state.get("v228_startup_backup_error"):
+        st.warning(
+            "No fue posible crear el backup automático: "
+            + st.session_state["v228_startup_backup_error"]
+        )
+
+    st.subheader("3. Tareas que todavía existen")
+
+    df_tasks_recovery = dataframe_table("tasks")
+    if df_tasks_recovery.empty:
+        st.error(
+            "La tabla tasks está actualmente vacía. "
+            "Esto indica que las tareas no están disponibles en la base activa."
+        )
+    else:
+        preferred = [
+            "id", "code", "title", "status", "progress",
+            "created_at", "start_date", "due_date",
+            "finished_at", "closed_at", "assignee_id",
+        ]
+        cols = [c for c in preferred if c in df_tasks_recovery.columns]
+        if not cols:
+            cols = list(df_tasks_recovery.columns)
+
+        st.dataframe(
+            df_tasks_recovery[cols],
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        csv_tasks = df_tasks_recovery.to_csv(index=False).encode("utf-8-sig")
+        st.download_button(
+            "⬇️ Descargar todas las tareas en CSV",
+            data=csv_tasks,
+            file_name=f"tareas_RECUPERACION_{date.today().isoformat()}.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    st.subheader("4. Eventos / actualizaciones sobrevivientes")
+
+    tab_evt, tab_upd, tab_mail = st.tabs(
+        ["Eventos", "Actualizaciones", "E-mails"]
+    )
+
+    with tab_evt:
+        df_evt = dataframe_table("task_events")
+        if df_evt.empty:
+            st.info("No hay eventos disponibles.")
+        else:
+            st.dataframe(df_evt, hide_index=True, use_container_width=True)
+            st.download_button(
+                "Descargar eventos CSV",
+                data=df_evt.to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"task_events_{date.today().isoformat()}.csv",
+                mime="text/csv",
+                key="v228_events_csv",
+            )
+
+    with tab_upd:
+        df_upd = dataframe_table("updates")
+        if df_upd.empty:
+            st.info("No hay actualizaciones disponibles.")
+        else:
+            st.dataframe(df_upd, hide_index=True, use_container_width=True)
+            st.download_button(
+                "Descargar actualizaciones CSV",
+                data=df_upd.to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"updates_{date.today().isoformat()}.csv",
+                mime="text/csv",
+                key="v228_updates_csv",
+            )
+
+    with tab_mail:
+        df_mail = dataframe_table("email_logs")
+        if df_mail.empty:
+            st.info("No hay logs de e-mail disponibles.")
+        else:
+            st.dataframe(df_mail, hide_index=True, use_container_width=True)
+            st.download_button(
+                "Descargar logs de e-mail CSV",
+                data=df_mail.to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"email_logs_{date.today().isoformat()}.csv",
+                mime="text/csv",
+                key="v228_mail_csv",
+            )
+
+    st.subheader("5. Diagnóstico SQLite")
+
+    try:
+        diag = sqlite_diagnostics()
+        st.json(diag)
+        if diag.get("integrity_check") == "ok":
+            st.success("Integridad SQLite: OK")
+        else:
+            st.warning(f"Integrity check: {diag.get('integrity_check')}")
+    except Exception as e:
+        st.warning(f"No fue posible ejecutar el diagnóstico: {e}")
+
+    st.caption(
+        "V2.28 protege contra nuevos borrados automáticos. "
+        "La persistencia definitiva en Streamlit Cloud debe migrarse posteriormente "
+        "a una base externa durable."
+    )
+
 
 elif page == "Mantenimiento":
 
