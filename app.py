@@ -918,11 +918,11 @@ hr {{
 }}
 
 /* V2.24 · densidad visual para formularios operativos */
-div[data-testid="stVerticalBlock"] { gap: .48rem; }
-div[data-testid="stForm"] { padding: .55rem .70rem .60rem .70rem; }
-div[data-testid="stForm"] [data-testid="stVerticalBlock"] { gap: .34rem; }
-div[data-testid="stTextArea"] textarea { min-height: 68px !important; }
-div[data-testid="stForm"] [data-testid="stHorizontalBlock"] { gap: .65rem; }
+div[data-testid="stVerticalBlock"] {{ gap: .48rem; }}
+div[data-testid="stForm"] {{ padding: .55rem .70rem .60rem .70rem; }}
+div[data-testid="stForm"] [data-testid="stVerticalBlock"] {{ gap: .34rem; }}
+div[data-testid="stTextArea"] textarea {{ min-height: 68px !important; }}
+div[data-testid="stForm"] [data-testid="stHorizontalBlock"] {{ gap: .65rem; }}
 </style>
 """,
     unsafe_allow_html=True,
