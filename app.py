@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.23"
+APP_VERSION = "V2.25"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -4191,6 +4191,72 @@ elif page == "Tareas":
         "Terminada - espera cierre",
         "Cerrada",
     ]
+
+    # ========================================================
+    # V2.25 · CORTE HISTÓRICO / REINICIO ESTADÍSTICO
+    # ========================================================
+    # Las tareas creadas hasta este instante pertenecen al período anterior.
+    # Se conservan en historial, pero archived=1 las excluye del dataframe
+    # operativo y, por lo tanto, del Tablero y sus estadísticas.
+    HISTORICAL_CUTOFF = "2026-09-09T10:19:00"
+
+    with st.expander("Corte histórico · excluir tareas anteriores de las estadísticas", expanded=False):
+        st.info(
+            "Este control archiva las tareas creadas hasta el 09/09/2026 10:19. "
+            "No las elimina: continúan disponibles en el historial de tareas archivadas, "
+            "pero dejan de integrar el Tablero y los indicadores operativos."
+        )
+        historical_pending = c.execute(
+            """
+            SELECT COUNT(*) AS n
+            FROM tasks
+            WHERE COALESCE(archived, 0) = 0
+              AND COALESCE(created_at, requested || 'T23:59:59') <= ?
+            """,
+            (HISTORICAL_CUTOFF,),
+        ).fetchone()["n"]
+        st.caption(f"Tareas activas alcanzadas por el corte: {int(historical_pending)}")
+
+        confirm_historical_cut = st.checkbox(
+            "Confirmo que estas tareas corresponden al período anterior y no deben computar estadísticamente.",
+            key="confirm_historical_cut_v225",
+        )
+        if st.button(
+            "Archivar período anterior",
+            type="primary",
+            disabled=(not confirm_historical_cut or int(historical_pending) == 0),
+            key="archive_historical_cut_v225",
+        ):
+            rows_to_archive = c.execute(
+                """
+                SELECT id, code
+                FROM tasks
+                WHERE COALESCE(archived, 0) = 0
+                  AND COALESCE(created_at, requested || 'T23:59:59') <= ?
+                ORDER BY id
+                """,
+                (HISTORICAL_CUTOFF,),
+            ).fetchall()
+            ids_to_archive = [int(row["id"]) for row in rows_to_archive]
+            if ids_to_archive:
+                c.executemany(
+                    "UPDATE tasks SET archived = 1 WHERE id = ?",
+                    [(task_id,) for task_id in ids_to_archive],
+                )
+                c.commit()
+                for row in rows_to_archive:
+                    log_event(
+                        c,
+                        int(row["id"]),
+                        "historical_cut_archived",
+                        "Administrador",
+                        "Archivada por corte histórico V2.25: ejecución/cierre anterior no controlados; excluida de estadísticas.",
+                    )
+                st.success(
+                    f"Corte aplicado: {len(ids_to_archive)} tarea(s) archivada(s). "
+                    "Permanecen en el historial y ya no computan en las estadísticas."
+                )
+                st.rerun()
 
     # ========================================================
     # V2.8 · EDICIÓN COMPLETA EN PRIMER PLANO
