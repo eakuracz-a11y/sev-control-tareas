@@ -25,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.26"
+APP_VERSION = "V2.27"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -5206,19 +5206,23 @@ elif page == "Recurrentes":
                         detail = f"Prevista {planned_text} · Finalizada —"
 
                     cards.append(
-                        f"""
-                        <div class="sev-month-card sev-month-{cls}">
-                            <div class="sev-month-name">{month_name}</div>
-                            <div class="sev-month-status">{status_text}</div>
-                            <div class="sev-month-date">{detail}</div>
-                        </div>
-                        """
+                        (
+                            f'<div class="sev-month-card sev-month-{cls}">'
+                            f'<div class="sev-month-name">{month_name}</div>'
+                            f'<div class="sev-month-status">{status_text}</div>'
+                            f'<div class="sev-month-date">{detail}</div>'
+                            '</div>'
+                        )
                     )
 
-                st.markdown(
+                annual_html = (
                     '<div class="sev-year-grid">'
                     + "".join(cards)
-                    + "</div>",
+                    + '</div>'
+                )
+
+                st.markdown(
+                    annual_html,
                     unsafe_allow_html=True,
                 )
 
