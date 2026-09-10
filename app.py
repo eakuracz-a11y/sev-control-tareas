@@ -3504,6 +3504,85 @@ def open_task_editor_v229(task_id):
     st.session_state["main_page_v229"] = "Tareas"
 
 
+
+# ============================================================
+# V2.29 · CORRECCIÓN FINAL DE TÍTULOS EN BLOQUES VERDES
+# ============================================================
+st.markdown(
+    """
+    <style>
+    /* Forzar blanco en los encabezados verdes principales */
+    .sev-section,
+    .sev-section-head,
+    .sev-dashboard-section,
+    .sev-dashboard-title,
+    .sev-header-green,
+    .sev-green-header {
+        color: #FFFFFF !important;
+    }
+
+    .sev-section h1,
+    .sev-section h2,
+    .sev-section h3,
+    .sev-section p,
+    .sev-section span,
+    .sev-section strong,
+    .sev-section div,
+    .sev-section-head h1,
+    .sev-section-head h2,
+    .sev-section-head h3,
+    .sev-section-head p,
+    .sev-section-head span,
+    .sev-section-head strong,
+    .sev-section-head div,
+    .sev-dashboard-section h1,
+    .sev-dashboard-section h2,
+    .sev-dashboard-section h3,
+    .sev-dashboard-section p,
+    .sev-dashboard-section span,
+    .sev-dashboard-section strong,
+    .sev-dashboard-section div,
+    .sev-dashboard-title h1,
+    .sev-dashboard-title h2,
+    .sev-dashboard-title h3,
+    .sev-dashboard-title p,
+    .sev-dashboard-title span,
+    .sev-dashboard-title strong,
+    .sev-dashboard-title div {
+        color: #FFFFFF !important;
+    }
+
+    /* Clases usadas por section() */
+    .sev-section-title,
+    .sev-section-subtitle,
+    .sev-section-title *,
+    .sev-section-subtitle * {
+        color: #FFFFFF !important;
+    }
+
+    /* Cobertura adicional por fondo inline */
+    div[style*="background:#007A43"] *,
+    div[style*="background: #007A43"] *,
+    div[style*="background:#005B32"] *,
+    div[style*="background: #005B32"] *,
+    div[style*="background-color:#007A43"] *,
+    div[style*="background-color: #007A43"] *,
+    div[style*="background-color:#005B32"] *,
+    div[style*="background-color: #005B32"] *,
+    div[style*="linear-gradient"] h1,
+    div[style*="linear-gradient"] h2,
+    div[style*="linear-gradient"] h3,
+    div[style*="linear-gradient"] p,
+    div[style*="linear-gradient"] span,
+    div[style*="linear-gradient"] strong {
+        color: #FFFFFF !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 page = st.sidebar.radio(
     "CONTROL DE TAREAS",
     [
