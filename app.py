@@ -3106,6 +3106,11 @@ def due_alerts(tasks_df, reference=None, horizon_days=7):
 render_header()
 
 
+def open_task_editor_v229(task_id):
+    st.session_state["edit_task_id_v28"] = int(task_id)
+    st.session_state["main_page_v229"] = "Tareas"
+
+
 page = st.sidebar.radio(
     "CONTROL DE TAREAS",
     [
@@ -3121,6 +3126,7 @@ page = st.sidebar.radio(
         "Cierres pendientes",
         "Avisos",
     ],
+    key="main_page_v229",
 )
 
 st.sidebar.divider()
@@ -3363,6 +3369,14 @@ if page == "Tablero":
                     unsafe_allow_html=True,
                 )
 
+                st.button(
+                    f"✏️ Modificar {str(task_row.get('code') or '')}",
+                    key=f"dash_edit_urgent_{int(task_row['id'])}",
+                    use_container_width=True,
+                    on_click=open_task_editor_v229,
+                    args=(int(task_row["id"]),),
+                )
+
             if len(urgent) > 7:
                 with st.expander(
                     f"Ver todas las {len(urgent)} acciones pendientes",
@@ -3502,6 +3516,14 @@ if page == "Tablero":
                     </div>
                     """,
                     unsafe_allow_html=True,
+                )
+
+                st.button(
+                    f"✏️ Modificar {str(task_row.get('code') or '')}",
+                    key=f"dash_edit_progress_{int(task_row['id'])}",
+                    use_container_width=True,
+                    on_click=open_task_editor_v229,
+                    args=(int(task_row["id"]),),
                 )
 
         with st.expander("Comparar avance real vs. teórico", expanded=False):
@@ -4485,17 +4507,23 @@ elif page == "Tareas":
                 disabled=True,
             )
 
-            b1, b2, b3 = st.columns([1.7, 1.0, 1.0])
+            b1, b2, b3, b4 = st.columns([1.55, 1.15, 1.0, 0.85])
             save_changes = b1.form_submit_button(
-                "💾 Guardar todas las modificaciones",
+                "💾 Guardar modificaciones",
                 type="primary",
                 use_container_width=True,
             )
-            close_action = b2.form_submit_button(
+            admin_accept = b2.form_submit_button(
+                "✔️ Aceptar como administrador",
+                use_container_width=True,
+                disabled=(current_status in ["Aceptada", "En ejecución", "Terminada - espera cierre", "Cerrada"]),
+                help="Acepta la tarea desde el panel administrador sin enviar un nuevo correo.",
+            )
+            close_action = b3.form_submit_button(
                 "✅ Guardar y cerrar",
                 use_container_width=True,
             )
-            cancel_edit = b3.form_submit_button(
+            cancel_edit = b4.form_submit_button(
                 "Cancelar",
                 use_container_width=True,
             )
@@ -4504,7 +4532,7 @@ elif page == "Tareas":
             st.session_state.pop("edit_task_id_v28", None)
             st.rerun()
 
-        if save_changes or close_action:
+        if save_changes or admin_accept or close_action:
             if not edit_title.strip():
                 st.error("La tarea no puede quedar sin nombre.")
             elif edit_start is not None and edit_due is not None and edit_due < edit_start:
@@ -4512,8 +4540,18 @@ elif page == "Tareas":
             elif edit_finished is not None and edit_start is not None and edit_finished < edit_start:
                 st.error("La fecha real de finalización no puede ser anterior a la fecha de inicio.")
             else:
-                new_status = "Cerrada" if close_action else edit_status
+                if close_action:
+                    new_status = "Cerrada"
+                elif admin_accept:
+                    new_status = "Aceptada"
+                else:
+                    new_status = edit_status
+
                 new_progress = 100 if close_action or new_status == "Cerrada" else int(edit_progress)
+
+                accepted_at = selected.get("accepted_at")
+                if admin_accept and not accepted_at:
+                    accepted_at = datetime.now().isoformat()
 
                 start_value = edit_start.isoformat() if edit_start is not None else None
                 due_value = edit_due.isoformat() if edit_due is not None else None
@@ -4575,6 +4613,7 @@ elif page == "Tareas":
                         observation = ?,
                         recurrence = ?,
                         recurrence_day = ?,
+                        accepted_at = ?,
                         finished_at = ?,
                         closed_at = ?
                     WHERE id = ?
@@ -4595,6 +4634,7 @@ elif page == "Tareas":
                         edit_observation.strip(),
                         recurrence_value,
                         recurrence_day_value,
+                        accepted_at,
                         finished_at,
                         closed_at,
                         task_id,
@@ -4608,13 +4648,22 @@ elif page == "Tareas":
                     f"inicio: {start_value or 'sin fecha'}; final prevista: {due_value or 'sin fecha'}; "
                     f"final real: {finished_at or 'sin fecha'}."
                 )
-                log_event(
-                    c,
-                    task_id,
-                    "closed" if will_be_closed else "edited",
-                    "Administrador",
-                    changed_summary,
-                )
+                if admin_accept:
+                    log_event(
+                        c,
+                        task_id,
+                        "accepted_admin",
+                        "Administrador",
+                        f"Tarea {selected.get('code', '')} aceptada por el administrador sin nuevo correo.",
+                    )
+                else:
+                    log_event(
+                        c,
+                        task_id,
+                        "closed" if will_be_closed else "edited",
+                        "Administrador",
+                        changed_summary,
+                    )
 
                 if will_be_closed and current_status != "Cerrada":
                     person_row = people.loc[people["id"] == int(edit_assignee)]
