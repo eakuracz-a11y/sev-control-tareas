@@ -57,87 +57,122 @@ LEGACY_ADMIN_EMAIL = "alejandro.kuracz@sevion.com.br"
 
 
 # ============================================================
-# TAREAS INICIALES DE CAMILLE
+# V2.29 · TAREAS RECUPERADAS
 # ============================================================
 
-SEED = [
-    ("Relatório de resultados de amostras de adjuvantes (Lotes)", "Cerrada", "—"),
-    ("Relatório de teste de emulsão (Projeto ADJ G)", "Cerrada", "—"),
-    (
-        "Produção de volume teste (Projeto ADJ G)",
-        "Cerrada",
-        "Novo volume será necessário caso haja continuidade dos testes ou produção em maior escala.",
-    ),
-    ("Agendamento da avaliação nas propriedades (Projeto ADJ G)", "Cerrada", "—"),
-    (
-        "Revisão do manejo dos produtores e organização da pesquisa, materiais e protocolos para teste de compatibilidade (Projeto ADJ G)",
-        "Cerrada",
-        "—",
-    ),
-    ("Relatórios dos testes – Fazenda Multiagri", "Cerrada", "—"),
-    ("Formulação com D-Limoneno", "Cerrada", "—"),
-    ("Treinamento de Brigadista", "Cerrada", "—"),
-    ("Treinamento de Emergência Química", "Cerrada", "—"),
-    ("Troca da coluna de resina do deionizador", "Cerrada", "Substituição realizada."),
-    ("Treinamento de Uso Correto de EPI", "Cerrada", "Conclusão prevista para 25/07."),
-    ("Avaliar embalagem tipo bag de adjuvantes", "Cerrada", "Aprovado"),
-    (
-        "Teste de compatibilidade de calda e relatório (ADJ G).",
-        "Cerrada",
-        "Refazer teste e identificar outros manejos.",
-    ),
-    ("Ajuste de performance do AAS", "Cerrada", "Após reunião com Tecnal."),
-    ("Teste de emulsão e relatório de Formulação com D-Limoneno", "Cerrada", "—"),
-    ("Teste de pulverização aérea (drone)", "Cerrada", "—"),
-    (
-        "Conferência de estoque e atualização da planilha",
-        "En ejecución",
-        "Mensalmente, dia 25",
-    ),
-    ("Mapa mensal da PF", "En ejecución", "Mensalmente, dia 26"),
-    (
-        "Revisão da curva de calibração de Cu (alta sensibilidade)",
-        "En ejecución",
-        "Refazer.",
-    ),
-    (
-        "Teste de pulverização aérea (drone - Derquian)",
-        "En ejecución",
-        "Previsão de conclusão até 13/08.",
-    ),
-    (
-        "Testes e relatório de Formulação com D-Limoneno",
-        "En ejecución",
-        "Fazer teste de compatibilidade com herbicidas e inseticidas, sem fungicidas.",
-    ),
-    ("Teste de compatibilidade de calda e relatório (MSO-TC).", "En ejecución", ""),
-    (
-        "Organização do laboratório sugeridas durante o treinamento de análises de solo",
-        "Pendiente",
-        "Necessário definir prioridade e cronograma.",
-    ),
-    ("Identificação de balanças", "Pendiente", "Verificar modelo e imprimir"),
-    (
-        "Fazer curva de Ca e Mg e analisar amostra de água mineral",
-        "Pendiente",
-        "Necessário definir prioridade e cronograma.",
-    ),
-    (
-        "Repetição das formulações de fertilizantes para confirmação das garantias",
-        "Pendiente",
-        "Necessário definir prioridade e cronograma.",
-    ),
-    (
-        "Preparo das formulações discutidas na consultoria",
-        "Pendiente",
-        "Necessário definir prioridade e cronograma.",
-    ),
-    (
-        "Análises de CQ dos fertilizantes formulados",
-        "Pendiente",
-        "Dependente da conclusão das formulações.",
-    ),
+# Estas son las tareas confirmadas a partir de los correos SEV.
+# Se incorporan automáticamente si todavía no existen en la base.
+RECOVERED_TASKS = [
+    {
+        "code": "SEV-LAB-SOL-2026-0001",
+        "title": "Generar app para analisis de resultados de muestra patron de suelos",
+        "sector": "LAB",
+        "area": "SOL",
+        "assignee_email": "kuraczg7@gmail.com",
+        "priority": "Media",
+        "requested": "2026-09-09",
+        "start_date": None,
+        "due_date": None,
+        "status": "Aceptada",
+        "progress": 0,
+        "accepted_at": "2026-09-09T11:13:00",
+        "created_at": "2026-09-09T11:13:00",
+    },
+    {
+        "code": "SEV-LAB-SER-2026-0002",
+        "title": "Controle de estoque de reagentes químicos",
+        "sector": "LAB",
+        "area": "SER",
+        "assignee_email": "flavia.guedes@sevion.com.br",
+        "priority": "Crítica",
+        "requested": "2026-09-09",
+        "start_date": "2026-09-25",
+        "due_date": "2026-09-25",
+        "status": "Asignada",
+        "progress": 0,
+        "accepted_at": None,
+        "created_at": "2026-09-09T11:23:00",
+    },
+    {
+        "code": "SEV-MANT-SER-2026-0003",
+        "title": "Colocação em funcionamento do gerador de vapor",
+        "sector": "MANT",
+        "area": "SER",
+        "assignee_email": "kuraczg7@gmail.com",
+        "priority": "Crítica",
+        "requested": "2026-09-09",
+        "start_date": "2026-09-08",
+        "due_date": "2026-09-30",
+        "status": "Asignada",
+        "progress": 0,
+        "accepted_at": None,
+        "created_at": "2026-09-09T11:36:00",
+    },
+    {
+        "code": "SEV-MANT-SER-2026-0004",
+        "title": "Colocação em funcionamento do gerador de vapor",
+        "sector": "MANT",
+        "area": "SER",
+        "assignee_email": "bruno.maia@sevion.com.br",
+        "priority": "Crítica",
+        "requested": "2026-09-09",
+        "start_date": "2026-09-08",
+        "due_date": "2026-09-30",
+        "status": "Asignada",
+        "progress": 0,
+        "accepted_at": None,
+        "created_at": "2026-09-09T11:36:00",
+    },
+    {
+        "code": "SEV-LAB-SER-2026-0005",
+        "title": "Controle de licenças da PF e do Exército",
+        "sector": "LAB",
+        "area": "SER",
+        "assignee_email": "camille.maia@sevion.com.br",
+        "priority": "Crítica",
+        "requested": "2026-09-09",
+        "start_date": "2026-09-25",
+        "due_date": "2026-09-25",
+        "status": "Asignada",
+        "progress": 0,
+        "accepted_at": None,
+        "created_at": "2026-09-09T11:47:00",
+    },
+    {
+        "code": "SEV-LAB-FUN-2026-0006",
+        "title": "Controle de estoque de reagentes químicos lab. Biológicos",
+        "sector": "LAB",
+        "area": "FUN",
+        "assignee_email": "ana.nolasco@sevion.com.br",
+        "priority": "Crítica",
+        "requested": "2026-09-09",
+        "start_date": "2026-09-25",
+        "due_date": "2026-09-25",
+        "status": "Asignada",
+        "progress": 0,
+        "accepted_at": None,
+        "created_at": "2026-09-09T11:53:00",
+    },
+    {
+        "code": "SEV-LAB-ADJ-2026-0007",
+        "title": "Formular 250 L de Adj G para Renan, criar ordem de produção e atribuir o lote correspondente",
+        "sector": "LAB",
+        "area": "ADJ",
+        "assignee_email": "ana.nolasco@sevion.com.br",
+        "priority": "Crítica",
+        "requested": "2026-09-09",
+        "start_date": "2026-09-10",
+        "due_date": "2026-09-11",
+        "status": "Asignada",
+        "progress": 0,
+        "accepted_at": None,
+        "created_at": "2026-09-09T12:03:00",
+    },
 ]
+
+# Las tareas antiguas de demostración / carga inicial ya no deben
+# aparecer en las listas operativas de V2.29.
+LEGACY_SEED_REQUESTED_DATE = "2026-08-13"
 
 
 # ============================================================
@@ -1187,114 +1222,134 @@ def init_db():
 
     c.commit()
 
-    total = c.execute(
+    # ------------------------------------------------------------
+    # V2.29 · limpiar antiguas tareas de carga inicial
+    # ------------------------------------------------------------
+    # No se borran: se archivan para conservar cualquier trazabilidad.
+    c.execute(
         """
-        SELECT COUNT(*) AS n
-        FROM tasks
-        """
-    ).fetchone()["n"]
+        UPDATE tasks
+        SET archived = 1
+        WHERE COALESCE(imported, 0) = 1
+          AND requested = ?
+          AND code NOT IN (
+              'SEV-LAB-SOL-2026-0001',
+              'SEV-LAB-SER-2026-0002',
+              'SEV-MANT-SER-2026-0003',
+              'SEV-MANT-SER-2026-0004',
+              'SEV-LAB-SER-2026-0005',
+              'SEV-LAB-FUN-2026-0006',
+              'SEV-LAB-ADJ-2026-0007'
+          )
+        """,
+        (LEGACY_SEED_REQUESTED_DATE,),
+    )
 
-    if total == 0:
+    # ------------------------------------------------------------
+    # V2.29 · incorporar las tareas recuperadas que falten
+    # ------------------------------------------------------------
+    for item in RECOVERED_TASKS:
+        exists = c.execute(
+            "SELECT id FROM tasks WHERE code = ?",
+            (item["code"],),
+        ).fetchone()
 
-        camille = c.execute(
+        if exists:
+            # Si ya existe una de las tareas recuperadas, asegurar que
+            # permanezca visible. No se pisan avances ni cambios posteriores.
+            c.execute(
+                "UPDATE tasks SET archived = 0 WHERE id = ?",
+                (int(exists["id"]),),
+            )
+            continue
+
+        person = c.execute(
+            "SELECT id FROM people WHERE LOWER(email) = LOWER(?)",
+            (item["assignee_email"],),
+        ).fetchone()
+
+        if not person:
+            continue
+
+        c.execute(
             """
-            SELECT id
-            FROM people
-            WHERE email = ?
+            INSERT INTO tasks(
+                code, title, description, sector, area, maintenance_type,
+                assignee_id, priority, requested, start_date, due_date,
+                status, progress, observation, token, accepted_at,
+                finished_at, closed_at, imported, recurrence,
+                recurrence_day, recurrence_parent_id, created_at,
+                archived, operational_cycle, restart_parent_id
+            )
+            VALUES(
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
             """,
             (
-                "camille.maia@sevion.com.br",
+                item["code"],
+                item["title"],
+                "",
+                item["sector"],
+                item["area"],
+                None,
+                int(person["id"]),
+                item["priority"],
+                item["requested"],
+                item["start_date"],
+                item["due_date"],
+                item["status"],
+                float(item["progress"]),
+                "Reconstruida desde correos del sistema SEV.",
+                secrets.token_urlsafe(24),
+                item["accepted_at"],
+                None,
+                None,
+                1,
+                None,
+                None,
+                None,
+                item["created_at"],
+                0,
+                "Actual",
+                None,
             ),
+        )
+
+        task_id = c.execute(
+            "SELECT last_insert_rowid() AS id"
         ).fetchone()["id"]
 
-        for i, (
-            title,
-            status,
-            observation,
-        ) in enumerate(
-            SEED,
-            1,
-        ):
+        c.execute(
+            """
+            INSERT INTO task_events(task_id, event_type, actor, detail, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                int(task_id),
+                "recovered",
+                "Administrador",
+                "Tarea recuperada desde correo del sistema SEV.",
+                item["created_at"],
+            ),
+        )
 
-            recurrence = None
-            recurrence_day = None
-
-            if "Mensalmente" in observation:
-
-                recurrence = "Mensual"
-
-            if "dia 25" in observation:
-
-                recurrence_day = 25
-
-            elif "dia 26" in observation:
-
-                recurrence_day = 26
-
-            if status == "Cerrada":
-
-                progress = 100
-
-            elif status == "En ejecución":
-
-                progress = 25
-
-            else:
-
-                progress = 0
-
-            code = (
-                f"SEV-LAB-FER-2026-{i:04d}"
-            )
-
+        if item["status"] == "Aceptada":
             c.execute(
                 """
-                INSERT INTO tasks(
-
-                    code,
-                    title,
-                    sector,
-                    area,
-                    assignee_id,
-                    priority,
-                    requested,
-                    status,
-                    progress,
-                    observation,
-                    token,
-                    imported,
-                    recurrence,
-                    recurrence_day,
-                    created_at
-
-                )
-                VALUES(
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                )
+                INSERT INTO task_events(task_id, event_type, actor, detail, created_at)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
-                    code,
-                    title,
-                    "LAB",
-                    "FER",
-                    camille,
-                    "Media",
-                    "2026-08-13",
-                    status,
-                    progress,
-                    observation,
-                    secrets.token_urlsafe(
-                        24
-                    ),
-                    1,
-                    recurrence,
-                    recurrence_day,
-                    datetime.now().isoformat(),
+                    int(task_id),
+                    "accepted",
+                    "Alejandro Kuracz",
+                    f"Tarea {item['code']} aceptada.",
+                    item["accepted_at"],
                 ),
             )
 
-        c.commit()
-
+    c.commit()
     c.close()
 
 
@@ -4621,6 +4676,49 @@ elif page == "Tareas":
             filtered = filtered[searchable.str.contains(needle, regex=False)]
 
         st.caption(f"Mostrando {len(filtered)} de {len(view)} tareas activas.")
+
+        # V2.29 · exportación descargable del listado de tareas.
+        export_columns = [
+            "code", "title", "assignee", "sector", "area", "priority",
+            "status", "requested", "start_date", "due_date",
+            "progress", "observation"
+        ]
+        export_tasks = view[export_columns].copy()
+        export_tasks = export_tasks.rename(
+            columns={
+                "code": "Código",
+                "title": "Tarea",
+                "assignee": "Responsable",
+                "sector": "Sector",
+                "area": "Área",
+                "priority": "Prioridad",
+                "status": "Estado",
+                "requested": "Solicitud",
+                "start_date": "Inicio",
+                "due_date": "Finalización prevista",
+                "progress": "Avance %",
+                "observation": "Observación",
+            }
+        )
+        for date_col in ["Solicitud", "Inicio", "Finalización prevista"]:
+            parsed = pd.to_datetime(export_tasks[date_col], errors="coerce")
+            export_tasks[date_col] = parsed.dt.strftime("%d/%m/%Y").fillna("")
+
+        csv_tasks = export_tasks.to_csv(
+            index=False,
+            sep=";",
+            decimal=",",
+        ).encode("utf-8-sig")
+
+        st.download_button(
+            "⬇️ Descargar listado de tareas (.csv)",
+            data=csv_tasks,
+            file_name=f"SEV_listado_tareas_{date.today().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key="download_tasks_v229",
+        )
+
         if filtered.empty:
             st.info("No hay tareas que coincidan con los filtros seleccionados.")
         else:
@@ -5149,38 +5247,33 @@ elif page == "Recurrentes":
                     unsafe_allow_html=True,
                 )
 
-                cards = []
-                for _, row in annual.iterrows():
-                    month_idx = int(row["Mes nº"]) - 1
-                    month_name = month_names_short[month_idx]
-                    planned = row["Prevista"]
-                    finished = row["Finalizada"]
-                    planned_text = planned.strftime("%d/%m/%Y") if isinstance(planned, date) else "—"
-                    finished_text = finished.strftime("%d/%m/%Y") if isinstance(finished, date) else "—"
-                    status_text = str(row["Estado anual"])
-                    cls = str(row["Clase"])
+                # V2.29: render nativo de Streamlit.
+                # Evita que fragmentos <div> aparezcan impresos como texto.
+                for card_start in range(0, len(annual), 4):
+                    cols_month = st.columns(4)
+                    block = annual.iloc[card_start:card_start + 4]
+                    for col_month, (_, row_month) in zip(cols_month, block.iterrows()):
+                        month_idx = int(row_month["Mes nº"]) - 1
+                        month_name = month_names_short[month_idx]
+                        planned = row_month["Prevista"]
+                        finished = row_month["Finalizada"]
+                        planned_text = (
+                            planned.strftime("%d/%m/%Y")
+                            if isinstance(planned, date) else "—"
+                        )
+                        finished_text = (
+                            finished.strftime("%d/%m/%Y")
+                            if isinstance(finished, date) else "—"
+                        )
+                        status_text = str(row_month["Estado anual"])
 
-                    if finished_text != "—":
-                        detail = f"Prevista {planned_text} · Finalizada {finished_text}"
-                    else:
-                        detail = f"Prevista {planned_text} · Finalizada —"
-
-                    cards.append(
-                        f"""
-                        <div class="sev-month-card sev-month-{cls}">
-                            <div class="sev-month-name">{month_name}</div>
-                            <div class="sev-month-status">{status_text}</div>
-                            <div class="sev-month-date">{detail}</div>
-                        </div>
-                        """
-                    )
-
-                st.markdown(
-                    '<div class="sev-year-grid">'
-                    + "".join(cards)
-                    + "</div>",
-                    unsafe_allow_html=True,
-                )
+                        with col_month:
+                            with st.container(border=True):
+                                st.markdown(f"**{month_name.upper()}**")
+                                st.markdown(status_text)
+                                st.caption(
+                                    f"Prevista {planned_text} · Finalizada {finished_text}"
+                                )
 
                 st.caption(
                     "🟢 concluída no prazo · 🟡 concluída após a data prevista · "
