@@ -25,6 +25,108 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
+
+# ============================================================
+# V2.29 · IDENTIDAD VISUAL VERDE MARCADO
+# ============================================================
+st.markdown(
+    """
+    <style>
+    :root{
+        --sev-green:#006B3C;
+        --sev-green-dark:#004D2B;
+        --sev-green-light:#E4F4EB;
+        --sev-green-pale:#F2F8F4;
+    }
+
+    /* Encabezados de sección bien marcados */
+    .sev-section,
+    .sev-section-head {
+        background: linear-gradient(90deg, var(--sev-green) 0%, var(--sev-green-dark) 100%) !important;
+        border-left: 0 !important;
+        border-radius: 8px !important;
+        padding: .75rem 1rem !important;
+    }
+
+    .sev-section-title,
+    .sev-section h2,
+    .sev-section-head h2 {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+    }
+
+    .sev-section-subtitle,
+    .sev-section p,
+    .sev-section-head p {
+        color: #EAF7F0 !important;
+    }
+
+    /* Menú: selección con bloque verde */
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+        background: var(--sev-green) !important;
+        color: #FFFFFF !important;
+        border-radius: 7px !important;
+        padding: .35rem .55rem !important;
+        font-weight: 800 !important;
+    }
+
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p {
+        color: #FFFFFF !important;
+    }
+
+    /* Tarjetas KPI: borde verde más visible */
+    [data-testid="stMetric"] {
+        border: 1px solid #B8D9C7 !important;
+        border-top: 4px solid var(--sev-green) !important;
+        border-radius: 12px !important;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: var(--sev-green-dark) !important;
+        font-weight: 700 !important;
+    }
+
+    /* Botones */
+    .stButton > button[kind="primary"],
+    .stDownloadButton > button {
+        background: var(--sev-green) !important;
+        color: #FFFFFF !important;
+        border-color: var(--sev-green) !important;
+        font-weight: 750 !important;
+    }
+
+    .stButton > button[kind="primary"]:hover,
+    .stDownloadButton > button:hover {
+        background: var(--sev-green-dark) !important;
+        border-color: var(--sev-green-dark) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* Encabezados y títulos generales */
+    h1, h2, h3 {
+        color: var(--sev-green-dark) !important;
+        font-weight: 800 !important;
+    }
+
+    /* Tablas */
+    [data-testid="stDataFrame"] [role="columnheader"] {
+        background: var(--sev-green-dark) !important;
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+    }
+
+    /* Formularios */
+    div[data-baseweb="select"] > div:focus-within,
+    .stTextInput input:focus,
+    .stTextArea textarea:focus {
+        border-color: var(--sev-green) !important;
+        box-shadow: 0 0 0 1px var(--sev-green) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 APP_VERSION = "V2.29"
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -250,10 +352,10 @@ st.markdown(
     """
     <style>
     :root{
-        --sev-green-dark:#14532D;
-        --sev-green-deep:#0B3D24;
-        --sev-green-soft:#EAF3ED;
-        --sev-title:#103D25;
+        --sev-green-dark:#006B3C;
+        --sev-green-deep:#004D2B;
+        --sev-green-soft:#E4F4EB;
+        --sev-title:#004D2B;
     }
 
     /* Títulos principales */
