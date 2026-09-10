@@ -244,6 +244,96 @@ st.set_page_config(
 
 
 # ============================================================
+# V2.29 · AJUSTE VISUAL · VERDE OSCURO
+# ============================================================
+st.markdown(
+    """
+    <style>
+    :root{
+        --sev-green-dark:#14532D;
+        --sev-green-deep:#0B3D24;
+        --sev-green-soft:#EAF3ED;
+        --sev-title:#103D25;
+    }
+
+    /* Títulos principales */
+    h1, h2, h3 {
+        color: var(--sev-green-deep) !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.02em;
+    }
+
+    h1 {
+        border-bottom: 3px solid var(--sev-green-dark);
+        padding-bottom: .35rem;
+        margin-bottom: .85rem !important;
+    }
+
+    h2 {
+        border-left: 5px solid var(--sev-green-dark);
+        padding-left: .65rem;
+    }
+
+    h3 {
+        font-weight: 750 !important;
+    }
+
+    /* Títulos creados por la función section() */
+    .sev-section-title,
+    .sev-title,
+    .sev-card-title,
+    .sev-progress-title2,
+    .sev-action-title {
+        color: var(--sev-green-deep) !important;
+        font-weight: 800 !important;
+    }
+
+    /* Navegación: mantener aspecto limpio pero con selección más marcada */
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+        color: var(--sev-green-deep) !important;
+        font-weight: 750 !important;
+    }
+
+    /* Botones primarios */
+    button[kind="primary"] {
+        background-color: var(--sev-green-dark) !important;
+        border-color: var(--sev-green-dark) !important;
+    }
+
+    button[kind="primary"]:hover {
+        background-color: var(--sev-green-deep) !important;
+        border-color: var(--sev-green-deep) !important;
+    }
+
+    /* Métricas y tarjetas: acento superior más oscuro */
+    [data-testid="stMetric"] {
+        border-top-color: var(--sev-green-dark) !important;
+    }
+
+    /* Encabezados de tablas */
+    [data-testid="stDataFrame"] [role="columnheader"] {
+        color: var(--sev-green-deep) !important;
+        font-weight: 750 !important;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: var(--sev-green-deep) !important;
+        font-weight: 750 !important;
+    }
+
+    /* Links */
+    a {
+        color: var(--sev-green-dark);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+# ============================================================
 # CSS GENERAL · V2.23
 # ============================================================
 
