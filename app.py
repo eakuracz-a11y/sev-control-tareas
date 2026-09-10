@@ -346,6 +346,207 @@ st.set_page_config(
 
 
 # ============================================================
+# V2.29 · ESTILO FINAL APROBADO
+# ============================================================
+st.markdown(
+    """
+    <style>
+    :root {
+        --sev-green: #007A43;
+        --sev-green-dark: #005B32;
+        --sev-green-deep: #004526;
+        --sev-green-light: #EAF6EF;
+
+        --sev-red: #C62828;
+        --sev-red-bg: #FDECEC;
+        --sev-red-border: #EF5350;
+
+        --sev-amber: #9A5B00;
+        --sev-amber-bg: #FFF4DA;
+        --sev-amber-border: #F0B429;
+
+        --sev-blue: #1557C0;
+        --sev-blue-bg: #EAF2FF;
+        --sev-blue-border: #3B82F6;
+    }
+
+    /* Cuadros verdes: texto blanco */
+    .sev-section,
+    .sev-section-head,
+    .sev-dashboard-section,
+    .sev-dashboard-title,
+    .sev-header-green,
+    .sev-green-header {
+        background: linear-gradient(90deg, var(--sev-green) 0%, var(--sev-green-dark) 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 8px !important;
+    }
+
+    .sev-section *,
+    .sev-section-head *,
+    .sev-dashboard-section *,
+    .sev-dashboard-title *,
+    .sev-header-green *,
+    .sev-green-header * {
+        color: #FFFFFF !important;
+    }
+
+    .sev-section-title,
+    .sev-section-subtitle,
+    .sev-section-title *,
+    .sev-section-subtitle * {
+        color: #FFFFFF !important;
+    }
+
+    /* títulos generales */
+    h1, h2, h3 {
+        color: var(--sev-green-deep) !important;
+        font-weight: 800 !important;
+    }
+
+    /* Menú lateral */
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {
+        background: linear-gradient(90deg, var(--sev-green) 0%, var(--sev-green-dark) 100%) !important;
+        border-radius: 7px !important;
+        padding: .35rem .55rem !important;
+        font-weight: 800 !important;
+    }
+
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked),
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) *,
+    [data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p {
+        color: #FFFFFF !important;
+    }
+
+    /* KPI generales */
+    [data-testid="stMetric"] {
+        background: #FFFFFF !important;
+        border: 1px solid #BCD8C8 !important;
+        border-top: 4px solid var(--sev-green) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,.035);
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: var(--sev-green-dark) !important;
+        font-weight: 750 !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        color: #0D3325 !important;
+        font-weight: 800 !important;
+    }
+
+    /* KPI principal: por posición */
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) >
+    div:nth-child(2) [data-testid="stMetric"] {
+        border-top-color: var(--sev-blue-border) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) >
+    div:nth-child(3) [data-testid="stMetric"] {
+        border-top-color: var(--sev-amber-border) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) >
+    div:nth-child(4) [data-testid="stMetric"] {
+        background: var(--sev-red-bg) !important;
+        border: 1px solid #F2B8B8 !important;
+        border-top: 4px solid var(--sev-red-border) !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) >
+    div:nth-child(4) [data-testid="stMetricLabel"],
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) >
+    div:nth-child(4) [data-testid="stMetricValue"] {
+        color: var(--sev-red) !important;
+        font-weight: 800 !important;
+    }
+
+    /* Estados / badges */
+    .sev-badge-danger,
+    .sev-badge-late,
+    .sev-status-late {
+        background: var(--sev-red-bg) !important;
+        color: var(--sev-red) !important;
+        border: 1px solid #F3BBBB !important;
+        font-weight: 800 !important;
+    }
+
+    .sev-badge-warning,
+    .sev-status-attention {
+        background: var(--sev-amber-bg) !important;
+        color: var(--sev-amber) !important;
+        border: 1px solid #F2D28B !important;
+        font-weight: 800 !important;
+    }
+
+    .sev-badge-unaccepted,
+    .sev-status-unaccepted {
+        background: #FFF0DA !important;
+        color: #8A4C00 !important;
+        border: 1px solid #F3D6AA !important;
+        font-weight: 800 !important;
+    }
+
+    .sev-badge-ok,
+    .sev-status-ok {
+        background: var(--sev-green-light) !important;
+        color: var(--sev-green-dark) !important;
+        border: 1px solid #B9DCC8 !important;
+        font-weight: 800 !important;
+    }
+
+    /* encabezados de tablas */
+    .sev-table-header,
+    .sev-action-table-header {
+        background: var(--sev-green-dark) !important;
+        color: #FFFFFF !important;
+        border-radius: 6px 6px 0 0 !important;
+    }
+
+    .sev-table-header *,
+    .sev-action-table-header * {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+    }
+
+    [data-testid="stDataFrame"] [role="columnheader"] {
+        background: var(--sev-green-dark) !important;
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+    }
+
+    /* botones */
+    .stButton > button[kind="primary"],
+    .stDownloadButton > button {
+        background: linear-gradient(90deg, var(--sev-green) 0%, var(--sev-green-dark) 100%) !important;
+        color: #FFFFFF !important;
+        border-color: var(--sev-green-dark) !important;
+        font-weight: 800 !important;
+    }
+
+    .stButton > button[kind="primary"] *,
+    .stDownloadButton > button * {
+        color: #FFFFFF !important;
+    }
+
+    /* foco en inputs */
+    div[data-baseweb="select"] > div:focus-within,
+    .stTextInput input:focus,
+    .stTextArea textarea:focus {
+        border-color: var(--sev-green) !important;
+        box-shadow: 0 0 0 1px var(--sev-green) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+
+# ============================================================
 # V2.29 · AJUSTE VISUAL · VERDE OSCURO
 # ============================================================
 st.markdown(
