@@ -2,7 +2,6 @@ from pathlib import Path
 import sqlite3
 import secrets
 import calendar
-import shutil
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -26,7 +25,7 @@ from reminders import run_reminders
 # CONFIGURACIÓN GENERAL
 # ============================================================
 
-APP_VERSION = "V2.28"
+APP_VERSION = "V2.29"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -917,13 +916,6 @@ hr {{
         flex: 1 1 100% !important;
     }}
 }}
-
-/* V2.24 · densidad visual para formularios operativos */
-div[data-testid="stVerticalBlock"] {{ gap: .48rem; }}
-div[data-testid="stForm"] {{ padding: .55rem .70rem .60rem .70rem; }}
-div[data-testid="stForm"] [data-testid="stVerticalBlock"] {{ gap: .34rem; }}
-div[data-testid="stTextArea"] textarea {{ min-height: 68px !important; }}
-div[data-testid="stForm"] [data-testid="stHorizontalBlock"] {{ gap: .65rem; }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -1100,12 +1092,6 @@ def init_db():
             created_at TEXT
 
         );
-
-        CREATE TABLE IF NOT EXISTS app_meta(
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            updated_at TEXT
-        );
         """
     )
 
@@ -1201,17 +1187,6 @@ def init_db():
 
     c.commit()
 
-    # ========================================================
-    # V2.28 · PROTECCIÓN DE DATOS
-    # ========================================================
-    # IMPORTANTE: desde V2.28 no existe ningún borrado automático
-    # de tasks, updates, email_logs o task_events al iniciar la app.
-    # Las tareas existentes deben conservarse siempre.
-    #
-    # El antiguo reset V2.26 fue eliminado deliberadamente.
-    #
-    # V2.26: no volver a cargar tareas de ejemplo/semilla.
-    # Si la base queda vacía, permanece vacía hasta crear tareas reales.
     total = c.execute(
         """
         SELECT COUNT(*) AS n
@@ -1219,7 +1194,7 @@ def init_db():
         """
     ).fetchone()["n"]
 
-    if False and total == 0:
+    if total == 0:
 
         camille = c.execute(
             """
@@ -2444,101 +2419,7 @@ def gantt_chart(
 # INICIALIZACIÓN
 # ============================================================
 
-
-# ============================================================
-# V2.28 · BACKUP Y DIAGNÓSTICO DE RECUPERACIÓN
-# ============================================================
-
-BACKUP_DIR = DATA_DIR / "backups"
-BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def create_local_backup(reason="startup"):
-    """
-    Crea una copia SQLite consistente de tareas.db dentro de data/backups.
-    No elimina ni modifica la base original.
-    """
-    db_path = Path(DB)
-    if not db_path.exists():
-        return None
-
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_reason = "".join(ch for ch in str(reason) if ch.isalnum() or ch in ("-", "_"))[:30]
-    backup_path = BACKUP_DIR / f"tareas_{stamp}_{safe_reason}.db"
-
-    src_conn = sqlite3.connect(DB)
-    dst_conn = sqlite3.connect(str(backup_path))
-    try:
-        src_conn.backup(dst_conn)
-    finally:
-        dst_conn.close()
-        src_conn.close()
-
-    # Mantener sólo los 30 backups locales más recientes.
-    backups = sorted(
-        BACKUP_DIR.glob("tareas_*.db"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    for old in backups[30:]:
-        try:
-            old.unlink()
-        except Exception:
-            pass
-
-    return backup_path
-
-
-def database_counts():
-    """Devuelve conteos seguros de las tablas principales."""
-    result = {}
-    conn = con()
-    try:
-        for table in ["tasks", "updates", "task_events", "email_logs", "app_meta"]:
-            try:
-                row = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
-                result[table] = int(row["n"] if row else 0)
-            except Exception:
-                result[table] = None
-    finally:
-        conn.close()
-    return result
-
-
-def sqlite_diagnostics():
-    """Información técnica útil para evaluar el estado actual del archivo."""
-    result = {}
-    conn = sqlite3.connect(DB)
-    try:
-        result["integrity_check"] = conn.execute("PRAGMA integrity_check").fetchone()[0]
-        result["journal_mode"] = conn.execute("PRAGMA journal_mode").fetchone()[0]
-        result["page_count"] = conn.execute("PRAGMA page_count").fetchone()[0]
-        result["freelist_count"] = conn.execute("PRAGMA freelist_count").fetchone()[0]
-    finally:
-        conn.close()
-    return result
-
-
-def dataframe_table(table):
-    conn = con()
-    try:
-        return pd.read_sql_query(f"SELECT * FROM {table}", conn)
-    except Exception:
-        return pd.DataFrame()
-    finally:
-        conn.close()
-
-
-
 init_db()
-
-try:
-    if "v228_startup_backup_done" not in st.session_state:
-        st.session_state["v228_startup_backup_path"] = create_local_backup("startup_v228")
-        st.session_state["v228_startup_backup_done"] = True
-except Exception as _backup_exc:
-    st.session_state["v228_startup_backup_error"] = str(_backup_exc)
-
 
 generate_recurring()
 
@@ -3181,9 +3062,9 @@ page = st.sidebar.radio(
         "Recurrentes",
         "Mantenimiento",
         "Operarios",
+        "Usuarios",
         "Cierres pendientes",
         "Avisos",
-        "Recuperación / Backup",
     ],
 )
 
@@ -3997,12 +3878,19 @@ elif page == "Nueva tarea":
         "La codificación SEV se genera automáticamente",
     )
 
-    # V2.24 · formulario compacto: sector y área en una sola fila
-    sector_col, area_col = st.columns(2)
-    with sector_col:
-        sector_name = st.selectbox("Sector", list(SECTORES))
-    with area_col:
-        area_name = st.selectbox("Área / familia", list(AREAS))
+    sector_name = st.selectbox(
+        "Sector",
+        list(
+            SECTORES
+        ),
+    )
+
+    area_name = st.selectbox(
+        "Área / familia",
+        list(
+            AREAS
+        ),
+    )
 
     maintenance_type = None
 
@@ -4030,9 +3918,10 @@ elif page == "Nueva tarea":
             )
         )
 
-        description = st.text_area(
-            "Descripción",
-            height=68,
+        description = (
+            st.text_area(
+                "Descripción"
+            )
         )
 
         col1, col2 = (
@@ -4099,12 +3988,18 @@ elif page == "Nueva tarea":
             )
         )
 
-        # Recurrencia y observación compactadas para evitar scroll
-        rec_col, obs_col = st.columns([1, 2])
-        with rec_col:
-            recurrence = st.selectbox("Recurrencia", RECURRENCIAS)
-        with obs_col:
-            observation = st.text_area("Observación", height=68)
+        recurrence = (
+            st.selectbox(
+                "Recurrencia",
+                RECURRENCIAS,
+            )
+        )
+
+        observation = (
+            st.text_area(
+                "Observación"
+            )
+        )
 
         submit = (
             st.form_submit_button(
@@ -4304,14 +4199,6 @@ elif page == "Tareas":
         "Terminada - espera cierre",
         "Cerrada",
     ]
-
-    # ========================================================
-    # V2.26 · INICIO LIMPIO
-    # ========================================================
-    st.caption(
-        "V2.26 · El control estadístico considera únicamente las tareas nuevas "
-        "creadas después del reinicio. Las tareas anteriores fueron eliminadas."
-    )
 
     # ========================================================
     # V2.8 · EDICIÓN COMPLETA EN PRIMER PLANO
@@ -4787,12 +4674,7 @@ elif page == "Tareas":
             selected_status_row = filtered.loc[filtered["id"].astype(int) == int(selected_open_id)].iloc[0]
             if o2.button("✅ Cerrar tarea", use_container_width=True, disabled=(str(selected_status_row.get("status") or "") == "Cerrada"), key="close_selected_task_v211"):
                 now = datetime.now().isoformat()
-                c.execute(
-                    "UPDATE tasks SET status='Cerrada', progress=100, "
-                    "finished_at=COALESCE(finished_at, ?), closed_at=? "
-                    "WHERE id=?",
-                    (now, now, int(selected_open_id)),
-                )
+                c.execute("UPDATE tasks SET status='Cerrada', progress=100, finished_at=COALESCE(finished_at, ?), closed_at=COALESCE(closed_at, ?) WHERE id=?", (now, now, int(selected_open_id)))
                 c.commit()
                 log_event(c, int(selected_open_id), "closed", "Administrador", "Cierre administrativo desde listado compacto.")
                 st.rerun()
@@ -5284,23 +5166,19 @@ elif page == "Recurrentes":
                         detail = f"Prevista {planned_text} · Finalizada —"
 
                     cards.append(
-                        (
-                            f'<div class="sev-month-card sev-month-{cls}">'
-                            f'<div class="sev-month-name">{month_name}</div>'
-                            f'<div class="sev-month-status">{status_text}</div>'
-                            f'<div class="sev-month-date">{detail}</div>'
-                            '</div>'
-                        )
+                        f"""
+                        <div class="sev-month-card sev-month-{cls}">
+                            <div class="sev-month-name">{month_name}</div>
+                            <div class="sev-month-status">{status_text}</div>
+                            <div class="sev-month-date">{detail}</div>
+                        </div>
+                        """
                     )
 
-                annual_html = (
+                st.markdown(
                     '<div class="sev-year-grid">'
                     + "".join(cards)
-                    + '</div>'
-                )
-
-                st.markdown(
-                    annual_html,
+                    + "</div>",
                     unsafe_allow_html=True,
                 )
 
@@ -5351,187 +5229,6 @@ elif page == "Recurrentes":
 # ============================================================
 # MANTENIMIENTO
 # ============================================================
-
-
-elif page == "Recuperación / Backup":
-    st.title("Recuperación / Backup")
-    st.caption(
-        "V2.28 elimina cualquier borrado automático al iniciar. "
-        "Esta pantalla permite guardar inmediatamente una copia de la base actual "
-        "y revisar qué registros siguen presentes."
-    )
-
-    counts = database_counts()
-    d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Tareas actuales", counts.get("tasks") if counts.get("tasks") is not None else "—")
-    d2.metric("Actualizaciones", counts.get("updates") if counts.get("updates") is not None else "—")
-    d3.metric("Eventos", counts.get("task_events") if counts.get("task_events") is not None else "—")
-    d4.metric("Logs e-mail", counts.get("email_logs") if counts.get("email_logs") is not None else "—")
-
-    st.warning(
-        "No hagas otro reinicio ni redeploy antes de descargar una copia de la base actual. "
-        "Si las tareas ya fueron eliminadas y el DELETE fue confirmado, esta pantalla no puede "
-        "reconstruir automáticamente el contenido que ya no existe."
-    )
-
-    st.subheader("1. Descargar base SQLite actual")
-
-    db_path = Path(DB)
-    if db_path.exists():
-        db_bytes = db_path.read_bytes()
-        st.download_button(
-            "⬇️ Descargar tareas.db ahora",
-            data=db_bytes,
-            file_name=f"tareas_RECUPERACION_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
-            mime="application/octet-stream",
-            use_container_width=True,
-        )
-        st.caption(
-            f"Archivo actual: {db_path.name} · {len(db_bytes) / 1024:.1f} KB"
-        )
-    else:
-        st.error("No se encontró el archivo tareas.db en esta instancia.")
-
-    st.subheader("2. Crear backup consistente")
-
-    if st.button(
-        "Crear backup inmediato",
-        type="primary",
-        use_container_width=True,
-        key="btn_v228_backup_now",
-    ):
-        try:
-            p = create_local_backup("manual")
-            if p and p.exists():
-                st.session_state["v228_manual_backup"] = str(p)
-                st.success(f"Backup creado: {p.name}")
-        except Exception as e:
-            st.error(f"No fue posible crear el backup: {e}")
-
-    manual_path = st.session_state.get("v228_manual_backup")
-    if manual_path:
-        p = Path(manual_path)
-        if p.exists():
-            st.download_button(
-                "⬇️ Descargar backup consistente",
-                data=p.read_bytes(),
-                file_name=p.name,
-                mime="application/octet-stream",
-                use_container_width=True,
-                key="download_v228_manual_backup",
-            )
-
-    startup_path = st.session_state.get("v228_startup_backup_path")
-    if startup_path:
-        p = Path(startup_path)
-        if p.exists():
-            st.info(f"Backup automático V2.28 creado al iniciar: {p.name}")
-
-    if st.session_state.get("v228_startup_backup_error"):
-        st.warning(
-            "No fue posible crear el backup automático: "
-            + st.session_state["v228_startup_backup_error"]
-        )
-
-    st.subheader("3. Tareas que todavía existen")
-
-    df_tasks_recovery = dataframe_table("tasks")
-    if df_tasks_recovery.empty:
-        st.error(
-            "La tabla tasks está actualmente vacía. "
-            "Esto indica que las tareas no están disponibles en la base activa."
-        )
-    else:
-        preferred = [
-            "id", "code", "title", "status", "progress",
-            "created_at", "start_date", "due_date",
-            "finished_at", "closed_at", "assignee_id",
-        ]
-        cols = [c for c in preferred if c in df_tasks_recovery.columns]
-        if not cols:
-            cols = list(df_tasks_recovery.columns)
-
-        st.dataframe(
-            df_tasks_recovery[cols],
-            hide_index=True,
-            use_container_width=True,
-        )
-
-        csv_tasks = df_tasks_recovery.to_csv(index=False).encode("utf-8-sig")
-        st.download_button(
-            "⬇️ Descargar todas las tareas en CSV",
-            data=csv_tasks,
-            file_name=f"tareas_RECUPERACION_{date.today().isoformat()}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-
-    st.subheader("4. Eventos / actualizaciones sobrevivientes")
-
-    tab_evt, tab_upd, tab_mail = st.tabs(
-        ["Eventos", "Actualizaciones", "E-mails"]
-    )
-
-    with tab_evt:
-        df_evt = dataframe_table("task_events")
-        if df_evt.empty:
-            st.info("No hay eventos disponibles.")
-        else:
-            st.dataframe(df_evt, hide_index=True, use_container_width=True)
-            st.download_button(
-                "Descargar eventos CSV",
-                data=df_evt.to_csv(index=False).encode("utf-8-sig"),
-                file_name=f"task_events_{date.today().isoformat()}.csv",
-                mime="text/csv",
-                key="v228_events_csv",
-            )
-
-    with tab_upd:
-        df_upd = dataframe_table("updates")
-        if df_upd.empty:
-            st.info("No hay actualizaciones disponibles.")
-        else:
-            st.dataframe(df_upd, hide_index=True, use_container_width=True)
-            st.download_button(
-                "Descargar actualizaciones CSV",
-                data=df_upd.to_csv(index=False).encode("utf-8-sig"),
-                file_name=f"updates_{date.today().isoformat()}.csv",
-                mime="text/csv",
-                key="v228_updates_csv",
-            )
-
-    with tab_mail:
-        df_mail = dataframe_table("email_logs")
-        if df_mail.empty:
-            st.info("No hay logs de e-mail disponibles.")
-        else:
-            st.dataframe(df_mail, hide_index=True, use_container_width=True)
-            st.download_button(
-                "Descargar logs de e-mail CSV",
-                data=df_mail.to_csv(index=False).encode("utf-8-sig"),
-                file_name=f"email_logs_{date.today().isoformat()}.csv",
-                mime="text/csv",
-                key="v228_mail_csv",
-            )
-
-    st.subheader("5. Diagnóstico SQLite")
-
-    try:
-        diag = sqlite_diagnostics()
-        st.json(diag)
-        if diag.get("integrity_check") == "ok":
-            st.success("Integridad SQLite: OK")
-        else:
-            st.warning(f"Integrity check: {diag.get('integrity_check')}")
-    except Exception as e:
-        st.warning(f"No fue posible ejecutar el diagnóstico: {e}")
-
-    st.caption(
-        "V2.28 protege contra nuevos borrados automáticos. "
-        "La persistencia definitiva en Streamlit Cloud debe migrarse posteriormente "
-        "a una base externa durable."
-    )
-
 
 elif page == "Mantenimiento":
 
@@ -5787,6 +5484,309 @@ elif page == "Operarios":
         hide_index=True,
         use_container_width=True,
     )
+
+
+# ============================================================
+# USUARIOS · V2.29
+# ============================================================
+
+elif page == "Usuarios":
+
+    section(
+        "Usuarios",
+        "Alta, edición y categorización de usuarios del sistema",
+    )
+
+    ROLES_USUARIO = ["Administrador", "Responsable"]
+
+    # --------------------------------------------------------
+    # RESUMEN
+    # --------------------------------------------------------
+    all_people = pd.read_sql_query(
+        """
+        SELECT
+            p.id,
+            p.name,
+            p.email,
+            COALESCE(p.role, 'Responsable') AS role,
+            COALESCE(p.active, 1) AS active,
+            COUNT(t.id) AS tareas
+        FROM people p
+        LEFT JOIN tasks t ON t.assignee_id = p.id
+        GROUP BY p.id, p.name, p.email, p.role, p.active
+        ORDER BY p.name
+        """,
+        c,
+    )
+
+    total_users = len(all_people)
+    active_users = int((all_people["active"] == 1).sum()) if not all_people.empty else 0
+    admin_users = int(
+        ((all_people["active"] == 1) & (all_people["role"] == "Administrador")).sum()
+    ) if not all_people.empty else 0
+    responsible_users = int(
+        ((all_people["active"] == 1) & (all_people["role"] == "Responsable")).sum()
+    ) if not all_people.empty else 0
+
+    u1, u2, u3, u4 = st.columns(4)
+    u1.metric("Usuarios", total_users)
+    u2.metric("Activos", active_users)
+    u3.metric("Administradores", admin_users)
+    u4.metric("Responsables", responsible_users)
+
+    # --------------------------------------------------------
+    # ALTA DE USUARIO
+    # --------------------------------------------------------
+    st.markdown("#### Crear nuevo usuario")
+
+    with st.form("new_user_v229", clear_on_submit=True):
+        n1, n2 = st.columns(2)
+        new_user_name = n1.text_input(
+            "Nombre y apellido",
+            placeholder="Ej.: Juan Pérez",
+        )
+        new_user_email = n2.text_input(
+            "Correo electrónico",
+            placeholder="usuario@sevion.com.br",
+        )
+
+        n3, n4 = st.columns(2)
+        new_user_role = n3.selectbox(
+            "Categoría",
+            ROLES_USUARIO,
+            index=1,
+        )
+        new_user_active = n4.checkbox(
+            "Usuario activo",
+            value=True,
+        )
+
+        create_user = st.form_submit_button(
+            "Crear usuario",
+            type="primary",
+            use_container_width=True,
+        )
+
+    if create_user:
+        clean_name = new_user_name.strip()
+        clean_email = new_user_email.strip().lower()
+
+        if not clean_name:
+            st.error("Ingresá el nombre del usuario.")
+        elif not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", clean_email):
+            st.error("Ingresá un correo electrónico válido.")
+        else:
+            exists = c.execute(
+                "SELECT id FROM people WHERE LOWER(email) = LOWER(?)",
+                (clean_email,),
+            ).fetchone()
+
+            if exists:
+                st.error("Ya existe un usuario con ese correo electrónico.")
+            else:
+                c.execute(
+                    """
+                    INSERT INTO people(name, email, active, role)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        clean_name,
+                        clean_email,
+                        1 if new_user_active else 0,
+                        new_user_role,
+                    ),
+                )
+                c.commit()
+
+                new_id = c.execute(
+                    "SELECT id FROM people WHERE LOWER(email)=LOWER(?)",
+                    (clean_email,),
+                ).fetchone()["id"]
+
+                log_event(
+                    c,
+                    0,
+                    "user_created",
+                    "Administrador",
+                    f"Usuario creado: {clean_name} · {clean_email} · {new_user_role} · id {new_id}",
+                )
+
+                st.success(f"Usuario {clean_name} creado correctamente.")
+                st.rerun()
+
+    # --------------------------------------------------------
+    # LISTADO
+    # --------------------------------------------------------
+    st.markdown("#### Usuarios registrados")
+
+    if all_people.empty:
+        st.info("No hay usuarios registrados.")
+    else:
+        user_display = all_people.copy()
+        user_display["Estado"] = user_display["active"].map(
+            {1: "Activo", 0: "Inactivo"}
+        ).fillna("Inactivo")
+        user_display = user_display.rename(
+            columns={
+                "name": "Nombre",
+                "email": "Correo",
+                "role": "Categoría",
+                "tareas": "Tareas",
+            }
+        )
+
+        st.dataframe(
+            user_display[
+                ["Nombre", "Correo", "Categoría", "Estado", "Tareas"]
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    # --------------------------------------------------------
+    # EDICIÓN
+    # --------------------------------------------------------
+    if not all_people.empty:
+        st.markdown("#### Editar usuario")
+
+        user_ids = all_people["id"].astype(int).tolist()
+        user_labels = {
+            int(row["id"]): f"{row['name']} · {row['email']}"
+            for _, row in all_people.iterrows()
+        }
+
+        selected_user_id = st.selectbox(
+            "Seleccionar usuario",
+            user_ids,
+            format_func=lambda user_id: user_labels.get(
+                int(user_id), str(user_id)
+            ),
+            key="user_edit_selector_v229",
+        )
+
+        current_user = all_people.loc[
+            all_people["id"] == int(selected_user_id)
+        ].iloc[0]
+
+        current_role = (
+            str(current_user["role"])
+            if str(current_user["role"]) in ROLES_USUARIO
+            else "Responsable"
+        )
+
+        with st.form(f"edit_user_v229_{int(selected_user_id)}"):
+            e1, e2 = st.columns(2)
+            edit_name = e1.text_input(
+                "Nombre y apellido",
+                value=str(current_user["name"]),
+            )
+            edit_email = e2.text_input(
+                "Correo electrónico",
+                value=str(current_user["email"]),
+            )
+
+            e3, e4 = st.columns(2)
+            edit_role = e3.selectbox(
+                "Categoría",
+                ROLES_USUARIO,
+                index=ROLES_USUARIO.index(current_role),
+            )
+            edit_active = e4.checkbox(
+                "Usuario activo",
+                value=bool(int(current_user["active"])),
+            )
+
+            save_user = st.form_submit_button(
+                "Guardar cambios",
+                type="primary",
+                use_container_width=True,
+            )
+
+        if save_user:
+            clean_name = edit_name.strip()
+            clean_email = edit_email.strip().lower()
+
+            if not clean_name:
+                st.error("El nombre no puede quedar vacío.")
+            elif not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", clean_email):
+                st.error("Ingresá un correo electrónico válido.")
+            else:
+                duplicate = c.execute(
+                    """
+                    SELECT id
+                    FROM people
+                    WHERE LOWER(email) = LOWER(?)
+                      AND id <> ?
+                    """,
+                    (clean_email, int(selected_user_id)),
+                ).fetchone()
+
+                if duplicate:
+                    st.error("Ese correo ya pertenece a otro usuario.")
+                else:
+                    # Nunca dejar el sistema sin un administrador activo.
+                    active_admins = c.execute(
+                        """
+                        SELECT COUNT(*) AS n
+                        FROM people
+                        WHERE active = 1
+                          AND COALESCE(role, 'Responsable') = 'Administrador'
+                        """
+                    ).fetchone()["n"]
+
+                    was_active_admin = (
+                        int(current_user["active"]) == 1
+                        and current_role == "Administrador"
+                    )
+                    will_be_active_admin = (
+                        edit_active and edit_role == "Administrador"
+                    )
+
+                    if (
+                        was_active_admin
+                        and not will_be_active_admin
+                        and int(active_admins) <= 1
+                    ):
+                        st.error(
+                            "Debe quedar al menos un Administrador activo. "
+                            "Creá o promovê otro administrador antes de cambiar este usuario."
+                        )
+                    else:
+                        c.execute(
+                            """
+                            UPDATE people
+                            SET name = ?, email = ?, role = ?, active = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                clean_name,
+                                clean_email,
+                                edit_role,
+                                1 if edit_active else 0,
+                                int(selected_user_id),
+                            ),
+                        )
+                        c.commit()
+
+                        log_event(
+                            c,
+                            0,
+                            "user_edited",
+                            "Administrador",
+                            (
+                                f"Usuario editado: {clean_name} · {clean_email} · "
+                                f"{edit_role} · "
+                                f"{'Activo' if edit_active else 'Inactivo'}"
+                            ),
+                        )
+
+                        st.success("Usuario actualizado correctamente.")
+                        st.rerun()
+
+        st.caption(
+            "Los usuarios con historial no se eliminan: pueden quedar inactivos "
+            "para conservar la trazabilidad de tareas, eventos y correos."
+        )
 
 
 # ============================================================
